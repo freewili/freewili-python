@@ -1,4 +1,4 @@
-![FreeWIli](https://github.com/freewili/freewili-python/blob/master/logo.png)
+![](https://github.com/freewili/freewili-python/blob/master/logo.png)
 # FreeWili
 
 FreeWili is a Python library for controlling and communicating with FreeWili boards.
