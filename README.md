@@ -7,7 +7,7 @@ FreeWili is a Python library for controlling and communicating with FreeWili boa
 
 You can install fwi-flash using pip:
 ```
-pip install fwi-flash
+pip install freewili
 ```
 
 ## Usage
