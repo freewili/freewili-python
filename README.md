@@ -10,6 +10,22 @@ You can install fwi-flash using pip:
 pip install fwi-flash
 ```
 
+## Usage
+
+```
+fwi-flash --help   
+usage: fwi-flash [-h] [-l] [-i INDEX] [-d DOWNLOAD_FILE DOWNLOAD_FILE] [--version]
+
+options:
+  -h, --help            show this help message and exit
+  -l, --list            List all FreeWili connected to the computer.
+  -i INDEX, --index INDEX
+                        Select a specific FreeWili by index. The first FreeWili is 1.
+  -d DOWNLOAD_FILE DOWNLOAD_FILE, --download_file DOWNLOAD_FILE DOWNLOAD_FILE
+                        Download a file to the FreeWili. Argument should be in the form of: <source_file> <target_name>
+  --version             show program's version number and exit
+```
+
 ## Development
 
 ```
