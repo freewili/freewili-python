@@ -1,4 +1,4 @@
-![](https://github.com/freewili/freewili-python/blob/master/logo.png)
+![](https://github.com/freewili/freewili-python/raw/master/logo.png)
 # FreeWili
 
 FreeWili is a Python library for controlling and communicating with FreeWili boards.
@@ -34,9 +34,9 @@ poetry run fwi-flash
 ```
 
 ### Dependencies
-#### Installing Python 3.12
+#### Installing Python 3.11+
 
-If you don't already have Python 3.12 installed, you can download it from the official Python website: <https://www.python.org/downloads/>. Follow the installation instructions for your operating system.
+If you don't already have Python 3.11+ installed, you can download it from the official Python website: <https://www.python.org/downloads/>. Follow the installation instructions for your operating system.
 
 #### Installing Poetry
 
