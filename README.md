@@ -29,6 +29,7 @@ options:
 ## Development
 
 ```
+poetry self add "poetry-dynamic-versioning[plugin]"
 poetry install
 poetry run fwi-flash
 ```
