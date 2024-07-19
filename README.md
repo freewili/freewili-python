@@ -33,7 +33,7 @@ options:
 ```
 poetry self add "poetry-dynamic-versioning[plugin]"
 poetry install
-poetry run fwi-flash
+poetry run fwi-serial --help
 
 pre-commit install
 ```
