@@ -7,6 +7,8 @@ import argparse
 import importlib.metadata
 import sys
 
+from result import Err, Ok, Result
+
 from freewili import serial
 
 
@@ -28,6 +30,25 @@ def exit_with_error(msg: str, exit_code: int = 1) -> None:
     sys.exit(exit_code)
 
 
+def get_device(index: int) -> Result[serial.FreeWiliSerial, str]:
+    """Get a FreeWiliSerial by index.
+
+    Parameters:
+    ----------
+        index: int
+            The index to be checked.
+
+    Returns:
+    -------
+        Result[serial.FreeWiliSerial, str]:
+            The FreeWiliSerial if the index is valid, otherwise an error message.
+    """
+    devices = serial.find_all()
+    if index >= len(devices):
+        return Err(f"Index {index} is out of range. There are only {len(devices)} devices.")
+    return Ok(devices[index])
+
+
 def main() -> None:
     """A command line interface to list and control FreeWili boards.
 
@@ -44,7 +65,7 @@ def main() -> None:
         "-l",
         "--list",
         action="store_true",
-        default=True,
+        default=False,
         help="List all FreeWili connected to the computer.",
     )
     parser.add_argument(
@@ -61,20 +82,35 @@ def main() -> None:
         help="Download a file to the FreeWili. Argument should be in the form of: <source_file> <target_name>",
     )
     parser.add_argument(
+        "-io",
+        "--set_io",
+        nargs=2,
+        help="Toggle IO pin to high. Argument should be in the form of: <io_pin> <high/low>",
+    )
+    parser.add_argument(
         "--version",
         action="version",
         version="%(prog)s {version}".format(version=importlib.metadata.version("freewili")),
     )
     args = parser.parse_args()
+    device_index: int = args.index - 1
     if args.list:
         devices = serial.find_all()
         print(f"Found {len(devices)} FreeWili(s)")
         for i, free_wili in enumerate(devices, start=1):
             print(f"\t{i}. {free_wili}")
     if args.download_file:
-        if not args.index:
-            raise ValueError("You must specify the index of the FreeWili.")
-        devices = serial.find_all()
-        if args.index > len(devices):
-            exit_with_error(f"Index {args.index} is out of range. There are only {len(devices)} devices.")
-        devices[args.index - 1].download_file(*args.download_file)
+        match get_device(device_index):
+            case Ok(device):
+                device.download_file(*args.download_file)
+            case Err(msg):
+                exit_with_error(msg)
+    if args.set_io:
+        io_pin: int = int(args.set_io[0])
+        is_high: bool = args.set_io[1].upper() == "HIGH"
+        match get_device(device_index):
+            case Ok(device):
+                print("Setting IO pin", io_pin, "to", "high" if is_high else "low")
+                print(device.set_io(io_pin, is_high).unwrap_or("Failed to set IO pin"))
+            case Err(msg):
+                exit_with_error(msg)

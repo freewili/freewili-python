@@ -229,6 +229,17 @@ files = [
 ]
 
 [[package]]
+name = "result"
+version = "0.17.0"
+description = "A Rust-like result type for Python"
+optional = false
+python-versions = ">=3.8"
+files = [
+    {file = "result-0.17.0-py3-none-any.whl", hash = "sha256:49fd668b4951ad15800b8ccefd98b6b94effc789607e19c65064b775570933e8"},
+    {file = "result-0.17.0.tar.gz", hash = "sha256:b73da420c0cb1a3bf741dbd41ff96dedafaad6a1b3ef437a9e33e380bb0d91cf"},
+]
+
+[[package]]
 name = "ruff"
 version = "0.5.3"
 description = "An extremely fast Python linter and code formatter, written in Rust."
@@ -289,4 +300,4 @@ test = ["covdefaults (>=2.3)", "coverage (>=7.2.7)", "coverage-enable-subprocess
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.11"
-content-hash = "6608d98664c2888c4cde8be8fa3a6edaa712607f860adc2585ef39ffcff7086d"
+content-hash = "5f26a55d25ec6fddcdd793e5a8e6d059b54fcefcdf6c33939e9fd6ccf5b3ef27"

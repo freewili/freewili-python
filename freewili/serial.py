@@ -11,6 +11,7 @@ from typing import Any, Callable, Optional, Self
 
 import serial
 import serial.tools.list_ports
+from result import Err, Ok, Result
 
 # Raspberry Pi Vendor ID
 RPI_VID = 0x2E8A
@@ -85,10 +86,10 @@ class FreeWiliSerial:
                     self._init_serial_if_necessary()
                 try:
                     result = func(self, *args, **kwargs)
+                    return result
                 finally:
                     self._serial.close()
                     result = None
-                return result
 
             return wrapper
 
@@ -102,15 +103,35 @@ class FreeWiliSerial:
             self._serial.write(bytes([2]))
             self._initialized = True
 
+    def _write_serial(self, data: bytes) -> Result[str, str]:
+        """Write data to the serial port."""
+        try:
+            length = self._serial.write(data)
+            if length != len(data):
+                return Err(f"Only wrote {length} of {len(data)} bytes.")
+        except serial.SerialException as e:
+            return Err(str(e))
+        return Ok(f"Wrote {length} bytes successfully.")
+
     @needs_open()
-    def set_io(self, io: int, value: int) -> None:
-        """TODO: Docstring."""
-        if value > 0:
-            stosend = "h\n" + str(io) + "\n"
-        else:
-            stosend = "l\n" + str(io) + "\n"
-        self._serial.write(bytes(stosend, "ascii"))
-        # sreturn = self._serial.read(2)
+    def set_io(self: Self, io: int, high: bool) -> Result[str, str]:
+        """Set the state of an IO pin to high or low.
+
+        Parameters:
+        ----------
+            io : int
+                The number of the IO pin to set.
+            high : bool
+                Whether to set the pin to high or low.
+
+        Returns:
+        -------
+            int :
+                The number of bytes written to the serial port.
+        """
+        letter = "h" if high else "l"
+        command = f"{letter}\n{io}\n".encode()
+        return self._write_serial(command)
 
     @needs_open()
     def gen_pwm(self, io_number: int, freq: float, duty: float) -> None:
@@ -168,7 +189,7 @@ class FreeWiliSerial:
         raise NotImplementedError
 
     @needs_open()
-    def download_file(self, source_file: pathlib.Path, target_name: str) -> None:
+    def download_file(self, source_file: pathlib.Path, target_name: str) -> Result[str, str]:
         """Download a file to the FreeWili.
 
         Arguments:
@@ -180,20 +201,25 @@ class FreeWiliSerial:
 
         Returns:
         -------
-            None
+            Result[str, str]:
+                TODO
         """
         if not isinstance(source_file, pathlib.Path):
             source_file = pathlib.Path(source_file)
         if not source_file.exists():
-            raise FileNotFoundError(source_file)
+            return Err(f"{source_file} does not exist.")
         fsize = source_file.stat().st_size
-        print(f"Downloading {source_file} ({fsize} bytes) as {target_name} on {self}")
-        self._serial.write(f"x\nf\n{target_name} {fsize}\n".encode())
-        with source_file.open("rb") as f:
-            while byte := f.read(1):
-                if self._serial.write(byte) != 1:
-                    raise RuntimeError(f"Failed to write {byte.decode()} to {self}")
-        print(f"Downloaded {fsize} bytes!")
+        match self._write_serial(f"x\nf\n{target_name} {fsize}\n".encode()):
+            case Ok(_):
+                print(f"Downloading {source_file} ({fsize} bytes) as {target_name} on {self}")
+                with source_file.open("rb") as f:
+                    while byte := f.read(1):
+                        if self._serial.write(byte) != 1:
+                            return Err(f"Failed to write {byte.decode()} to {self}")
+                    print(f"Downloaded {fsize} bytes!")
+                return Ok(f"Downloaded {source_file} ({fsize} bytes) as {target_name} to {self}")
+            case Err(e):
+                return Err(e)
 
 
 def find_all() -> tuple[FreeWiliSerial, ...]:
