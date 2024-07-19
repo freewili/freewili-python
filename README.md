@@ -13,8 +13,7 @@ pip install freewili
 ## Usage
 
 ```
-fwi-flash --help   
-usage: fwi-flash [-h] [-l] [-i INDEX] [-d DOWNLOAD_FILE DOWNLOAD_FILE] [--version]
+usage: fwi-serial [-h] [-l] [-i INDEX] [-d DOWNLOAD_FILE DOWNLOAD_FILE] [-io SET_IO SET_IO] [--version]
 
 options:
   -h, --help            show this help message and exit
@@ -22,7 +21,10 @@ options:
   -i INDEX, --index INDEX
                         Select a specific FreeWili by index. The first FreeWili is 1.
   -d DOWNLOAD_FILE DOWNLOAD_FILE, --download_file DOWNLOAD_FILE DOWNLOAD_FILE
-                        Download a file to the FreeWili. Argument should be in the form of: <source_file> <target_name>
+                        Download a file to the FreeWili. Argument should be in the form of: <source_file>
+                        <target_name>
+  -io SET_IO SET_IO, --set_io SET_IO SET_IO
+                        Toggle IO pin to high. Argument should be in the form of: <io_pin> <high/low>
   --version             show program's version number and exit
 ```
 
@@ -32,6 +34,8 @@ options:
 poetry self add "poetry-dynamic-versioning[plugin]"
 poetry install
 poetry run fwi-flash
+
+pre-commit install
 ```
 
 ### Dependencies
