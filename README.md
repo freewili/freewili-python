@@ -9,8 +9,25 @@ You can install fwi-flash using pip:
 ```
 pip install freewili
 ```
+## Python script example
 
-## Usage
+```python
+
+import time
+import freewili.serial
+
+devices = freewili.serial.find_all()
+device = devices[0]
+
+led_state: bool = True
+device.stay_open = True
+for _ in range(100):
+    device.set_io(25, led_state)
+    led_state ^= True
+    time.sleep(0.1)
+
+
+## fw-serial Usage
 
 ```
 usage: fwi-serial [-h] [-l] [-i INDEX] [-d DOWNLOAD_FILE DOWNLOAD_FILE] [-io SET_IO SET_IO] [--version]
