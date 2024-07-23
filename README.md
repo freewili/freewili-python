@@ -25,7 +25,7 @@ for _ in range(100):
     device.set_io(25, led_state)
     led_state ^= True
     time.sleep(0.1)
-
+```
 
 ## fw-serial Usage
 
