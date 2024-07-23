@@ -27,7 +27,7 @@ for _ in range(100):
     time.sleep(0.1)
 ```
 
-## fw-serial Usage
+## fwi-serial command line usage
 
 ```
 usage: fwi-serial [-h] [-l] [-i INDEX] [-d DOWNLOAD_FILE DOWNLOAD_FILE] [-io SET_IO SET_IO] [--version]
