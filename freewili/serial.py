@@ -40,7 +40,7 @@ class FreeWiliSerial:
 
     def __init__(self, info: FreeWiliSerialInfo, stay_open: bool = False) -> None:
         self._info: FreeWiliSerialInfo = info
-        self._serial: serial.Serial = serial.Serial(self._info.port)
+        self._serial: serial.Serial = serial.Serial(None)
         # Initialize to disable menus
         self._initialized: bool = False
         self._stay_open: bool = stay_open
@@ -101,6 +101,7 @@ class FreeWiliSerial:
             @functools.wraps(func)
             def wrapper(self: Self, *args: Optional[Any], **kwargs: Optional[Any]) -> Any | None:
                 if not self._serial.is_open:
+                    self._serial.port = self._info.port
                     self._serial.open()
                     self._init_serial_if_necessary()
                 try:
@@ -118,6 +119,7 @@ class FreeWiliSerial:
 
     def __enter__(self) -> Self:
         if not self._serial.is_open:
+            self._serial.port = self._info.port
             self._serial.open()
         return self
 
