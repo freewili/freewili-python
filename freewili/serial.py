@@ -38,11 +38,12 @@ class FreeWiliSerialInfo:
 class FreeWiliSerial:
     """Class representing a serial connection to a FreeWili."""
 
-    def __init__(self, info: FreeWiliSerialInfo) -> None:
+    def __init__(self, info: FreeWiliSerialInfo, stay_open: bool = False) -> None:
         self._info: FreeWiliSerialInfo = info
         self._serial: serial.Serial = serial.Serial(self._info.port)
         # Initialize to disable menus
         self._initialized: bool = False
+        self._stay_open: bool = stay_open
 
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__} {self._info}>"
@@ -54,6 +55,24 @@ class FreeWiliSerial:
     def info(self) -> FreeWiliSerialInfo:
         """Information of the COM Port of the FreeWili."""
         return self._info
+
+    @property
+    def stay_open(self) -> bool:
+        """Keep serial port open, if True.
+
+        Returns:
+            bool
+        """
+        return self._stay_open
+
+    @stay_open.setter
+    def stay_open(self, value: bool) -> None:
+        self._stay_open = value
+
+    def close(self) -> None:
+        """Close the serial port. Use in conjunction with stay_open."""
+        if self._serial.is_open:
+            self._serial.close()
 
     @staticmethod
     def needs_open() -> Callable:
@@ -88,12 +107,23 @@ class FreeWiliSerial:
                     result = func(self, *args, **kwargs)
                     return result
                 finally:
-                    self._serial.close()
+                    if not self.stay_open:
+                        print("Closing serial port")
+                        self._serial.close()
                     result = None
 
             return wrapper
 
         return decorator
+
+    def __enter__(self) -> Self:
+        if not self._serial.is_open:
+            self._serial.open()
+        return self
+
+    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
+        if self._serial.is_open:
+            self._serial.close()
 
     def _init_serial_if_necessary(self) -> None:
         """Initialize the serial port if it hasn't been initialized yet."""
