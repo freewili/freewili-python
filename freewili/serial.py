@@ -6,7 +6,8 @@ This module provides functionality to find and control FreeWili boards.
 import dataclasses
 import functools
 import pathlib
-import time
+import re
+import sys
 from typing import Any, Callable, Optional, Self
 
 import serial
@@ -40,7 +41,7 @@ class FreeWiliSerial:
 
     def __init__(self, info: FreeWiliSerialInfo, stay_open: bool = False) -> None:
         self._info: FreeWiliSerialInfo = info
-        self._serial: serial.Serial = serial.Serial(None)
+        self._serial: serial.Serial = serial.Serial(None, timeout=1.0)
         # Initialize to disable menus
         self._initialized: bool = False
         self._stay_open: bool = stay_open
@@ -158,32 +159,80 @@ class FreeWiliSerial:
 
         Returns:
         -------
-            int :
-                The number of bytes written to the serial port.
+            Result[str, str]:
+                Ok(str) if the command was sent successfully, Err(str) if not.
         """
         letter = "h" if high else "l"
         command = f"{letter}\n{io}\n".encode()
         return self._write_serial(command)
 
     @needs_open()
-    def gen_pwm(self, io_number: int, freq: float, duty: float) -> None:
-        """TODO: Docstring."""
-        stosend = "o\n" + str(io_number) + " " + str(freq) + " " + str(duty) + "\n"
-        self._serial.write(bytes(stosend, "ascii"))
+    def generate_pwm(self, io: int, freq: int, duty: int) -> Result[str, str]:
+        """Set PWM on an IO pin.
+
+        Parameters:
+        ----------
+            io : int
+                The number of the IO pin to set.
+            freq : int
+                The PWM frequency in Hz.
+            duty : int
+                The duty cycle of the PWM. 0-100.
+
+        Returns:
+        -------
+            Result[str, str]:
+                Ok(str) if the command was sent successfully, Err(str) if not.
+        """
+        command = f"o\n{io} {freq} {duty}\n".encode()
+        return self._write_serial(command)
 
     @needs_open()
-    def get_all_io(self) -> bytes:
-        """TODO: Docstring."""
-        self._serial.reset_input_buffer()
-        stosend = "g\n"
-        self._serial.write(bytes(stosend, "ascii"))
-        time.sleep(0.2)
-        return self._serial.readline()
+    def get_all_io(self) -> Result[int, str]:
+        """Get all the IO values.
+
+        Parameters:
+        ----------
+            None
+
+        Returns:
+        -------
+            Result[int, str]:
+                Ok(int) if the command was sent successfully, Err(str) if not.
+        """
+        try:
+            result = self._write_serial(b"g\n")
+            if result.is_err():
+                return Err(result.err_value)
+            # Wait for data to return, should be 4 bytes (sizeof(int) + sizeof('\n'))
+            data = self._serial.read((4 * 2) + 1)
+            return Ok(int(data.decode().strip(), 16))
+        except serial.SerialException as e:
+            return Err(str(e))
 
     @needs_open()
-    def read_write_spi_data(self, data: bytes) -> bytes:
-        """TODO: Docstring."""
-        raise NotImplementedError
+    def read_write_spi_data(self, data: bytes) -> Result[bytes, str]:
+        """Read and Write SPI data.
+
+        Parameters:
+        ----------
+            data : bytes
+                The data to write.
+
+        Returns:
+        -------
+            Result[bytes, str]:
+                Ok(bytes) if the command was sent successfully, Err(str) if not.
+        """
+        hex_reg = re.compile(r"[A-Fa-f0-9]{1,2}")
+        read_bytes = bytearray()
+        for i in range(0, len(data), 8):
+            str_hex_data = " ".join(f"{i:02X}" for i in data[i : i + 8])
+            self._serial.write(f"s\n{str_hex_data}\n".encode())
+            read_data = self._serial.readline().strip()
+            for value in hex_reg.findall(read_data.decode()):
+                read_bytes += int(value, 16).to_bytes(1, sys.byteorder)
+        return Ok(bytes(read_bytes))
 
     @needs_open()
     def write_i2c(self, address: int, register: int, data: bytes) -> int:
