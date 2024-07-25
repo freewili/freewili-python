@@ -11,12 +11,13 @@ pip install freewili
 ```
 ## Python script example
 
+### Toggle LED 25:
 ```python
 
 import time
-import freewili.serial
+import freewili
 
-devices = freewili.serial.find_all()
+devices = freewili.find_all()
 device = devices[0]
 
 led_state: bool = True
@@ -25,6 +26,20 @@ for _ in range(100):
     device.set_io(25, led_state)
     led_state ^= True
     time.sleep(0.1)
+```
+
+### Poll I2C:
+```python
+
+import freewili
+
+devices = freewili.find_all()
+device = devices[0]
+print(device.poll_i2c())
+```
+
+```bash
+Ok([1, 2])
 ```
 
 ## fwi-serial command line usage

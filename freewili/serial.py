@@ -8,7 +8,7 @@ import functools
 import pathlib
 import re
 import sys
-from typing import Any, Callable, Optional, Self
+from typing import Any, Callable, List, Optional, Self, Tuple
 
 import serial
 import serial.tools.list_ports
@@ -256,11 +256,15 @@ class FreeWiliSerial:
         return self._write_and_read_bytes_cmd("s\n", data, self.DEFAULT_SEGMENT_SIZE)
 
     @needs_open()
-    def write_i2c(self, address: int, register: int, data: bytes) -> int:
-        """Write radio data.
+    def write_i2c(self, address: int, register: int, data: bytes) -> Result[bytes, str]:
+        """Write I2C data.
 
         Parameters:
         ----------
+            address : int
+                The address to write to.
+            register : int
+                The register to write to.
             data : bytes
                 The data to write.
 
@@ -271,6 +275,68 @@ class FreeWiliSerial:
         """
         complete_data = address.to_bytes(1, sys.byteorder) + register.to_bytes(1, sys.byteorder) + data
         return self._write_and_read_bytes_cmd("i\n", complete_data, self.DEFAULT_SEGMENT_SIZE)
+
+    @needs_open()
+    def read_i2c(self, address: int, register: int, data_size: int) -> Result[bytes, str]:
+        """Read I2C data.
+
+        Parameters:
+        ----------
+            address : int
+                The address to write to.
+            register : int
+                The register to write to.
+            data_size : int
+                The number of bytes to read.
+
+        Returns:
+        -------
+            Result[bytes, str]:
+                Ok(bytes) if the command was sent successfully, Err(str) if not.
+        """
+        complete_data = (
+            address.to_bytes(1, sys.byteorder)
+            + register.to_bytes(1, sys.byteorder)
+            + data_size.to_bytes(1, sys.byteorder)
+        )
+        return self._write_and_read_bytes_cmd("i\n", complete_data, self.DEFAULT_SEGMENT_SIZE)
+
+    @needs_open()
+    def poll_i2c(self) -> Result[Tuple[int], str]:
+        """Run a script on the FreeWili.
+
+        Arguments:
+        ----------
+        file_name: str
+            Name of the file in the FreeWili. 8.3 filename limit exists as of V12
+
+        Returns:
+        -------
+            Result[str, str]:
+                Ok(List[int]) if the command was sent successfully, Err(str) if not.
+        """
+
+        def _process_line(line: str) -> List[int]:
+            """Process a line of hex values seperated by a space and returns a list of int."""
+            hex_reg = re.compile(r"[A-Fa-f0-9]{1,2}")
+            values = []
+            for value in hex_reg.findall(line):
+                values.append(int(value, 16))
+            return values
+
+        match self._write_serial("p\n".encode()):
+            case Ok(_):
+                found_addresses = []
+                first_line_processed: bool = False
+                while line := self._serial.readline():
+                    if not first_line_processed:
+                        first_line_processed = True
+                        continue
+                    addresses = _process_line(line.decode().lstrip().rstrip())
+                    found_addresses.extend([addr for addr in addresses[1:] if addr != 0])
+                return Ok(tuple(found_addresses))
+            case Err(e):
+                return Err(e)
 
     @needs_open()
     def write_radio(self, data: bytes) -> Result[bytes, str]:
