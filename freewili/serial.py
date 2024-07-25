@@ -205,7 +205,7 @@ class FreeWiliSerial:
         try:
             result = self._write_serial(b"g\n")
             if result.is_err():
-                return result
+                return Err(str(result.err()))
             # Wait for data to return, should be 4 bytes (sizeof(int) + sizeof('\n'))
             data = self._serial.read((4 * 2) + 1)
             return Ok(int(data.decode().strip(), 16))
@@ -302,7 +302,7 @@ class FreeWiliSerial:
         return self._write_and_read_bytes_cmd("i\n", complete_data, self.DEFAULT_SEGMENT_SIZE)
 
     @needs_open()
-    def poll_i2c(self) -> Result[Tuple[int], str]:
+    def poll_i2c(self) -> Result[Tuple[int, ...], str]:
         """Run a script on the FreeWili.
 
         Arguments:
@@ -355,7 +355,7 @@ class FreeWiliSerial:
         return self._write_and_read_bytes_cmd("t\n", data, self.DEFAULT_SEGMENT_SIZE)
 
     @needs_open()
-    def read_radio(self, data: bytes) -> bytes:
+    def read_radio(self, data: bytes) -> Result[bytes, str]:
         """Read radio data.
 
         Parameters:
@@ -371,7 +371,7 @@ class FreeWiliSerial:
         return self._write_and_read_bytes_cmd("k\n", data, self.DEFAULT_SEGMENT_SIZE)
 
     @needs_open()
-    def write_uart(self, data: bytes) -> None:
+    def write_uart(self, data: bytes) -> Result[bytes, str]:
         """Write uart data.
 
         Parameters:
@@ -392,7 +392,7 @@ class FreeWiliSerial:
         raise NotImplementedError
 
     @needs_open()
-    def run_script(self, file_name: str) -> None:
+    def run_script(self, file_name: str) -> Result[str, str]:
         """Run a script on the FreeWili.
 
         Arguments:
@@ -415,7 +415,7 @@ class FreeWiliSerial:
                 return Err(e)
 
     @needs_open()
-    def load_fpga_from_file(self, file_name: str) -> None:
+    def load_fpga_from_file(self, file_name: str) -> Result[str, str]:
         """Load an FGPA from a file on the FreeWili.
 
         Arguments:
