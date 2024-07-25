@@ -5,7 +5,7 @@ FreeWili is a Python library for controlling and communicating with FreeWili boa
 
 ## Installation
 
-You can install fwi-flash using pip:
+You can install freewili using pip by running the following command:
 ```
 pip install freewili
 ```
