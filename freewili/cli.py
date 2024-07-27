@@ -102,7 +102,7 @@ def main() -> None:
     if args.download_file:
         match get_device(device_index):
             case Ok(device):
-                device.download_file(*args.download_file)
+                print(device.download_file(*args.download_file).unwrap())
             case Err(msg):
                 exit_with_error(msg)
     if args.set_io:

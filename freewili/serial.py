@@ -165,7 +165,7 @@ class FreeWiliSerial:
                 Ok(str) if the command was sent successfully, Err(str) if not.
         """
         letter = "h" if high else "l"
-        command = f"{letter}\n{io}\n".encode()
+        command = f"{letter}\r\n{io}\r\n".encode()
         return self._write_serial(command)
 
     @needs_open()
@@ -186,7 +186,7 @@ class FreeWiliSerial:
             Result[str, str]:
                 Ok(str) if the command was sent successfully, Err(str) if not.
         """
-        command = f"o\n{io} {freq} {duty}\n".encode()
+        command = f"o\r\n{io} {freq} {duty}\r\n".encode()
         return self._write_serial(command)
 
     @needs_open()
@@ -203,10 +203,10 @@ class FreeWiliSerial:
                 Ok(int) if the command was sent successfully, Err(str) if not.
         """
         try:
-            result = self._write_serial(b"g\n")
+            result = self._write_serial(b"g\r\n")
             if result.is_err():
                 return Err(str(result.err()))
-            # Wait for data to return, should be 4 bytes (sizeof(int) + sizeof('\n'))
+            # Wait for data to return, should be 4 bytes (sizeof(int) + sizeof('\r\n'))
             data = self._serial.read((4 * 2) + 1)
             return Ok(int(data.decode().strip(), 16))
         except serial.SerialException as e:
@@ -233,7 +233,7 @@ class FreeWiliSerial:
         read_bytes = bytearray()
         for i in range(0, len(data), data_segment_size):
             str_hex_data = " ".join(f"{i:02X}" for i in data[i : i + data_segment_size])
-            self._serial.write(f"{command}{str_hex_data}\n".encode())
+            self._serial.write(f"{command}{str_hex_data}\r\n".encode())
             read_data = self._serial.readline().strip()
             for value in hex_reg.findall(read_data.decode()):
                 read_bytes += int(value, 16).to_bytes(1, sys.byteorder)
@@ -253,7 +253,7 @@ class FreeWiliSerial:
             Result[bytes, str]:
                 Ok(bytes) if the command was sent successfully, Err(str) if not.
         """
-        return self._write_and_read_bytes_cmd("s\n", data, self.DEFAULT_SEGMENT_SIZE)
+        return self._write_and_read_bytes_cmd("s\r\n", data, self.DEFAULT_SEGMENT_SIZE)
 
     @needs_open()
     def write_i2c(self, address: int, register: int, data: bytes) -> Result[bytes, str]:
@@ -274,7 +274,7 @@ class FreeWiliSerial:
                 Ok(bytes) if the command was sent successfully, Err(str) if not.
         """
         complete_data = address.to_bytes(1, sys.byteorder) + register.to_bytes(1, sys.byteorder) + data
-        return self._write_and_read_bytes_cmd("i\n", complete_data, self.DEFAULT_SEGMENT_SIZE)
+        return self._write_and_read_bytes_cmd("i\r\n", complete_data, self.DEFAULT_SEGMENT_SIZE)
 
     @needs_open()
     def read_i2c(self, address: int, register: int, data_size: int) -> Result[bytes, str]:
@@ -299,7 +299,7 @@ class FreeWiliSerial:
             + register.to_bytes(1, sys.byteorder)
             + data_size.to_bytes(1, sys.byteorder)
         )
-        return self._write_and_read_bytes_cmd("i\n", complete_data, self.DEFAULT_SEGMENT_SIZE)
+        return self._write_and_read_bytes_cmd("i\r\n", complete_data, self.DEFAULT_SEGMENT_SIZE)
 
     @needs_open()
     def poll_i2c(self) -> Result[Tuple[int, ...], str]:
@@ -324,7 +324,7 @@ class FreeWiliSerial:
                 values.append(int(value, 16))
             return values
 
-        match self._write_serial("p\n".encode()):
+        match self._write_serial("p\r\n".encode()):
             case Ok(_):
                 found_addresses = []
                 first_line_processed: bool = False
@@ -352,7 +352,7 @@ class FreeWiliSerial:
             Result[bytes, str]:
                 Ok(bytes) if the command was sent successfully, Err(str) if not.
         """
-        return self._write_and_read_bytes_cmd("t\n", data, self.DEFAULT_SEGMENT_SIZE)
+        return self._write_and_read_bytes_cmd("t\r\n", data, self.DEFAULT_SEGMENT_SIZE)
 
     @needs_open()
     def read_radio(self, data: bytes) -> Result[bytes, str]:
@@ -368,7 +368,7 @@ class FreeWiliSerial:
             Result[bytes, str]:
                 Ok(bytes) if the command was sent successfully, Err(str) if not.
         """
-        return self._write_and_read_bytes_cmd("k\n", data, self.DEFAULT_SEGMENT_SIZE)
+        return self._write_and_read_bytes_cmd("k\r\n", data, self.DEFAULT_SEGMENT_SIZE)
 
     @needs_open()
     def write_uart(self, data: bytes) -> Result[bytes, str]:
@@ -384,7 +384,7 @@ class FreeWiliSerial:
             Result[bytes, str]:
                 Ok(bytes) if the command was sent successfully, Err(str) if not.
         """
-        return self._write_and_read_bytes_cmd("u\n", data, self.DEFAULT_SEGMENT_SIZE)
+        return self._write_and_read_bytes_cmd("u\r\n", data, self.DEFAULT_SEGMENT_SIZE)
 
     @needs_open()
     def enable_stream(self, enable: bool) -> None:
@@ -405,7 +405,7 @@ class FreeWiliSerial:
             Result[str, str]:
                 Ok(str) if the command was sent successfully, Err(str) if not.
         """
-        match self._write_serial(f"w\n{file_name}\n".encode()):
+        match self._write_serial(f"w\r\n{file_name}\r\n".encode()):
             case Ok(_):
                 read_bytes = []
                 while byte := self._serial.read(1):
@@ -428,7 +428,7 @@ class FreeWiliSerial:
             Result[str, str]:
                 Ok(str) if the command was sent successfully, Err(str) if not.
         """
-        match self._write_serial(f"m\n{file_name}\n".encode()):
+        match self._write_serial(f"m\r\n{file_name}\r\n".encode()):
             case Ok(_):
                 read_bytes = []
                 while byte := self._serial.read(1):
@@ -458,14 +458,13 @@ class FreeWiliSerial:
         if not source_file.exists():
             return Err(f"{source_file} does not exist.")
         fsize = source_file.stat().st_size
-        match self._write_serial(f"x\nf\n{target_name} {fsize}\n".encode()):
+        match self._write_serial(f"x\r\nf\r\n{target_name} {fsize}\r\n".encode()):
             case Ok(_):
                 print(f"Downloading {source_file} ({fsize} bytes) as {target_name} on {self}")
                 with source_file.open("rb") as f:
                     while byte := f.read(1):
                         if self._serial.write(byte) != 1:
                             return Err(f"Failed to write {byte.decode()} to {self}")
-                    print(f"Downloaded {fsize} bytes!")
                 return Ok(f"Downloaded {source_file} ({fsize} bytes) as {target_name} to {self}")
             case Err(e):
                 return Err(e)
