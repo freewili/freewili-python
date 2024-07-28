@@ -462,10 +462,42 @@ class FreeWiliSerial:
             case Ok(_):
                 print(f"Downloading {source_file} ({fsize} bytes) as {target_name} on {self}")
                 with source_file.open("rb") as f:
-                    while byte := f.read(1):
-                        if self._serial.write(byte) != 1:
+                    import time
+
+                    while byte := f.read(8):
+                        print(byte)
+                        if self._serial.write(byte) != len(byte):
                             return Err(f"Failed to write {byte.decode()} to {self}")
+                        time.sleep(0.001)
+                        self._serial.flush()
+                self._write_serial(b"\r\n").unwrap()
                 return Ok(f"Downloaded {source_file} ({fsize} bytes) as {target_name} to {self}")
+            case Err(e):
+                return Err(e)
+
+    @needs_open()
+    def upload_file(self, source_file: str) -> Result[bytearray, str]:
+        """Upload a file to the FreeWili.
+
+        Arguments:
+        ----------
+        source_file: str
+            Name of the file in the FreeWili. 8.3 filename limit exists as of V12
+
+        Returns:
+        -------
+            Result[bytearray, str]:
+                Returns an array of bytes if the command was sent successfully, Err(str) if not.
+        """
+        # Clear anything in the buffer
+        _ = self._serial.read_all()
+        match self._write_serial(f"x\r\nu\r\n{source_file}\r\n".encode()):
+            case Ok(_):
+                import time
+
+                time.sleep(0.5)
+                data = self._serial.read_all()
+                return Ok(data)
             case Err(e):
                 return Err(e)
 
