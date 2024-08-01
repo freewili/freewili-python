@@ -9,7 +9,7 @@ import sys
 
 from result import Err, Ok, Result
 
-from freewili import serial
+from freewili import image, serial
 
 
 def exit_with_error(msg: str, exit_code: int = 1) -> None:
@@ -140,3 +140,40 @@ def main() -> None:
                 print(device.set_io(io_pin, is_high).unwrap_or("Failed to set IO pin"))
             case Err(msg):
                 exit_with_error(msg)
+
+
+def convert() -> None:
+    """A command line interface to convert a jpg or png image to a fwi file.
+
+    Parameters:
+    ----------
+        None
+
+    Returns:
+    -------
+        None
+    """
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "-i",
+        "--input",
+        required=True,
+        help="Path to a JPG or PNG image to be converted",
+    )
+    parser.add_argument(
+        "-o",
+        "--output",
+        required=True,
+        help="Output filename for the fwi file",
+    )
+    parser.add_argument(
+        "--version",
+        action="version",
+        version="%(prog)s {version}".format(version=importlib.metadata.version("freewili")),
+    )
+    args = parser.parse_args()
+    match image.convert(args.input, args.output):
+        case Ok(msg):
+            print(msg)
+        case Err(msg):
+            exit_with_error(msg)
