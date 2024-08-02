@@ -8,6 +8,7 @@ import functools
 import pathlib
 import re
 import sys
+import time
 from typing import Any, Callable, List, Optional, Self, Tuple
 
 import serial
@@ -133,17 +134,21 @@ class FreeWiliSerial:
     def _init_serial_if_necessary(self) -> None:
         """Initialize the serial port if it hasn't been initialized yet."""
         if not self._initialized:
-            self._serial.reset_input_buffer()
             # disable menus (ctrl-b)
-            self._serial.write(bytes([2]))
-            self._initialized = True
+            self._serial.reset_output_buffer()
+            self._write_serial(b"\x02")
+            self._serial.reset_input_buffer()
+            time.sleep(1)
+            self._initialized = False
 
     def _write_serial(self, data: bytes) -> Result[str, str]:
         """Write data to the serial port."""
+        print(f"DEBUG: {repr(data)}")
         try:
             length = self._serial.write(data)
             if length != len(data):
                 return Err(f"Only wrote {length} of {len(data)} bytes.")
+            self._serial.flush()
         except serial.SerialException as e:
             return Err(str(e))
         return Ok(f"Wrote {length} bytes successfully.")
@@ -165,7 +170,7 @@ class FreeWiliSerial:
                 Ok(str) if the command was sent successfully, Err(str) if not.
         """
         letter = "h" if high else "l"
-        command = f"{letter}\r\n{io}\r\n".encode()
+        command = f"{letter}\r\n{io}\r\n".encode("ascii")
         return self._write_serial(command)
 
     @needs_open()
@@ -186,7 +191,7 @@ class FreeWiliSerial:
             Result[str, str]:
                 Ok(str) if the command was sent successfully, Err(str) if not.
         """
-        command = f"o\r\n{io} {freq} {duty}\r\n".encode()
+        command = f"o\r\n{io} {freq} {duty}\r\n".encode("ascii")
         return self._write_serial(command)
 
     @needs_open()
@@ -233,7 +238,7 @@ class FreeWiliSerial:
         read_bytes = bytearray()
         for i in range(0, len(data), data_segment_size):
             str_hex_data = " ".join(f"{i:02X}" for i in data[i : i + data_segment_size])
-            self._serial.write(f"{command}{str_hex_data}\r\n".encode())
+            self._serial.write(f"{command}{str_hex_data}\r\n".encode("ascii"))
             read_data = self._serial.readline().strip()
             for value in hex_reg.findall(read_data.decode()):
                 read_bytes += int(value, 16).to_bytes(1, sys.byteorder)
@@ -324,7 +329,7 @@ class FreeWiliSerial:
                 values.append(int(value, 16))
             return values
 
-        match self._write_serial("p\r\n".encode()):
+        match self._write_serial("p\r\n".encode("ascii")):
             case Ok(_):
                 found_addresses = []
                 first_line_processed: bool = False
@@ -405,7 +410,7 @@ class FreeWiliSerial:
             Result[str, str]:
                 Ok(str) if the command was sent successfully, Err(str) if not.
         """
-        match self._write_serial(f"w\r\n{file_name}\r\n".encode()):
+        match self._write_serial(f"w\r\n{file_name}\r\n".encode("ascii")):
             case Ok(_):
                 read_bytes = []
                 while byte := self._serial.read(1):
@@ -428,7 +433,7 @@ class FreeWiliSerial:
             Result[str, str]:
                 Ok(str) if the command was sent successfully, Err(str) if not.
         """
-        match self._write_serial(f"m\r\n{file_name}\r\n".encode()):
+        match self._write_serial(f"m\r\n{file_name}\r\n".encode("ascii")):
             case Ok(_):
                 read_bytes = []
                 while byte := self._serial.read(1):
@@ -458,19 +463,28 @@ class FreeWiliSerial:
         if not source_file.exists():
             return Err(f"{source_file} does not exist.")
         fsize = source_file.stat().st_size
-        match self._write_serial(f"x\r\nf\r\n{target_name} {fsize}\r\n".encode()):
+        # generate the checksum
+        checksum = 0
+        with source_file.open("rb") as f:
+            while byte := f.read(1):
+                checksum += int.from_bytes(byte)
+                if checksum & 0x8000:
+                    checksum ^= 2054
+                checksum &= 0xFFFFFF
+        # send the download command
+        self._serial.read_all()
+        match self._write_serial(f"x\nf\n{target_name} {fsize} {checksum}\n".encode("ascii")):
             case Ok(_):
+                time.sleep(1)
+                # print(self._serial.read_all())
                 print(f"Downloading {source_file} ({fsize} bytes) as {target_name} on {self}")
                 with source_file.open("rb") as f:
-                    import time
-
-                    while byte := f.read(8):
-                        print(byte)
+                    while byte := f.read(1):
+                        # print(byte)
                         if self._serial.write(byte) != len(byte):
                             return Err(f"Failed to write {byte.decode()} to {self}")
-                        time.sleep(0.001)
-                        self._serial.flush()
-                self._write_serial(b"\r\n").unwrap()
+                        # print(self._serial.read_all())
+                        # time.sleep(0.002)
                 return Ok(f"Downloaded {source_file} ({fsize} bytes) as {target_name} to {self}")
             case Err(e):
                 return Err(e)
@@ -491,10 +505,8 @@ class FreeWiliSerial:
         """
         # Clear anything in the buffer
         _ = self._serial.read_all()
-        match self._write_serial(f"x\r\nu\r\n{source_file}\r\n".encode()):
+        match self._write_serial(f"x\r\nu\r\n{source_file}\r\n".encode("ascii")):
             case Ok(_):
-                import time
-
                 time.sleep(0.5)
                 data = self._serial.read_all()
                 return Ok(data)
