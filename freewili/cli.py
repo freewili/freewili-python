@@ -82,6 +82,18 @@ def main() -> None:
         help="Download a file to the FreeWili. Argument should be in the form of: <source_file> <target_name>",
     )
     parser.add_argument(
+        "-u",
+        "--upload_file",
+        nargs=2,
+        help="Upload a file from the FreeWili. Argument should be in the form of: <source_file> <target_name>",
+    )
+    parser.add_argument(
+        "-w",
+        "--run_script",
+        nargs=1,
+        help="Run a script on the FreeWili.",
+    )
+    parser.add_argument(
         "-io",
         "--set_io",
         nargs=2,
@@ -102,7 +114,21 @@ def main() -> None:
     if args.download_file:
         match get_device(device_index):
             case Ok(device):
-                device.download_file(*args.download_file)
+                print(device.download_file(*args.download_file).unwrap())
+            case Err(msg):
+                exit_with_error(msg)
+    if args.upload_file:
+        match get_device(device_index):
+            case Ok(device):
+                data = device.upload_file(args.upload_file[0]).unwrap()
+                with open(args.upload_file[1], "w+b") as f:
+                    f.write(data)
+            case Err(msg):
+                exit_with_error(msg)
+    if args.run_script:
+        match get_device(device_index):
+            case Ok(device):
+                print(device.run_script(*args.run_script).unwrap())
             case Err(msg):
                 exit_with_error(msg)
     if args.set_io:
