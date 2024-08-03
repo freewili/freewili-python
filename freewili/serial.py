@@ -143,7 +143,7 @@ class FreeWiliSerial:
 
     def _write_serial(self, data: bytes) -> Result[str, str]:
         """Write data to the serial port."""
-        print(f"DEBUG: {repr(data)}")
+        # print(f"DEBUG: {repr(data)}")
         try:
             length = self._serial.write(data)
             if length != len(data):
