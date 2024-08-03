@@ -2,6 +2,7 @@
     "recommendations": [
         "ms-python.mypy-type-checker",
         "charliermarsh.ruff",
-        "ms-python.python"
+        "ms-python.python",
+        "zeshuaro.vscode-python-poetry"
     ]
 }
