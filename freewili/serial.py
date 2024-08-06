@@ -410,6 +410,7 @@ class FreeWiliSerial:
             Result[str, str]:
                 Ok(str) if the command was sent successfully, Err(str) if not.
         """
+        print(f"Running script '{file_name}' on {self}...")
         match self._write_serial(f"w\n{file_name}\n".encode("ascii")):
             case Ok(_):
                 read_bytes = []
@@ -443,20 +444,20 @@ class FreeWiliSerial:
                 return Err(e)
 
     @needs_open()
-    def download_file(self, source_file: pathlib.Path, target_name: str) -> Result[str, str]:
-        """Download a file to the FreeWili.
+    def send_file(self, source_file: pathlib.Path, target_name: str) -> Result[str, str]:
+        """Send a file to the FreeWili.
 
         Arguments:
         ----------
         source_file: pathlib.Path
-            Path to the file to be downloaded
+            Path to the file to be sent.
         target_name: str
-            Name of the file in the FreeWili. 8.3 filename limit exists as of V12
+            Name of the file in the FreeWili.
 
         Returns:
         -------
             Result[str, str]:
-                TODO
+                Returns Ok(str) if the command was sent successfully, Err(str) if not.
         """
         if not isinstance(source_file, pathlib.Path):
             source_file = pathlib.Path(source_file)
@@ -490,8 +491,8 @@ class FreeWiliSerial:
                 return Err(e)
 
     @needs_open()
-    def upload_file(self, source_file: str) -> Result[bytearray, str]:
-        """Upload a file to the FreeWili.
+    def get_file(self, source_file: str) -> Result[bytearray, str]:
+        """Get a file from the FreeWili.
 
         Arguments:
         ----------
