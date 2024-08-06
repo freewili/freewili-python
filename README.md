@@ -68,7 +68,7 @@ options:
 ### Send file from host to freewili:
 
 ```bash
-$ fwi-serial -d /path/to/bin.wasm /scripts/bin.wasm
+$ fwi-serial -fn /scripts/bin.wasm -s /path/to/bin.wasm
 ```
 
 ### Run script on the freewili:
