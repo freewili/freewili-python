@@ -45,19 +45,21 @@ Ok([1, 2])
 ## fwi-serial command line usage
 
 ```
-usage: fwi-serial [-h] [-l] [-i INDEX] [-d DOWNLOAD_FILE DOWNLOAD_FILE] [-u UPLOAD_FILE UPLOAD_FILE] [-w RUN_SCRIPT] [-io SET_IO SET_IO] [--version]
+usage: fwi-serial [-h] [-l] [-i INDEX] [-s SEND_FILE] [-fn FILE_NAME] [-u GET_FILE GET_FILE] [-w [RUN_SCRIPT]] [-io SET_IO SET_IO] [--version]
 
 options:
   -h, --help            show this help message and exit
   -l, --list            List all FreeWili connected to the computer.
   -i INDEX, --index INDEX
                         Select a specific FreeWili by index. The first FreeWili is 1.
-  -d DOWNLOAD_FILE DOWNLOAD_FILE, --download_file DOWNLOAD_FILE DOWNLOAD_FILE
-                        Download a file to the FreeWili. Argument should be in the form of: <source_file> <target_name>
-  -u UPLOAD_FILE UPLOAD_FILE, --upload_file UPLOAD_FILE UPLOAD_FILE
-                        Upload a file from the FreeWili. Argument should be in the form of: <source_file> <target_name>
-  -w RUN_SCRIPT, --run_script RUN_SCRIPT
-                        Run a script on the FreeWili.
+  -s SEND_FILE, --send_file SEND_FILE
+                        send a file to the FreeWili. Argument should be in the form of: <source_file>
+  -fn FILE_NAME, --file_name FILE_NAME
+                        Set the name of the file in the FreeWili. Argument should be in the form of: <file_name>
+  -u GET_FILE GET_FILE, --get_file GET_FILE GET_FILE
+                        Get a file from the FreeWili. Argument should be in the form of: <source_file> <target_name>
+  -w [RUN_SCRIPT], --run_script [RUN_SCRIPT]
+                        Run a script on the FreeWili. If no argument is provided, -fn will be used.
   -io SET_IO SET_IO, --set_io SET_IO SET_IO
                         Toggle IO pin to high. Argument should be in the form of: <io_pin> <high/low>
   --version             show program's version number and exit

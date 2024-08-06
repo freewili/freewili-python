@@ -5,6 +5,7 @@ This module provides a command line interface to find and control FreeWili board
 
 import argparse
 import importlib.metadata
+import pathlib
 import sys
 
 from result import Err, Ok, Result
@@ -76,22 +77,29 @@ def main() -> None:
         help="Select a specific FreeWili by index. The first FreeWili is 1.",
     )
     parser.add_argument(
-        "-d",
-        "--download_file",
-        nargs=2,
-        help="Download a file to the FreeWili. Argument should be in the form of: <source_file> <target_name>",
+        "-s",
+        "--send_file",
+        nargs=1,
+        help="send a file to the FreeWili. Argument should be in the form of: <source_file>",
+    )
+    parser.add_argument(
+        "-fn",
+        "--file_name",
+        nargs=1,
+        help="Set the name of the file in the FreeWili. Argument should be in the form of: <file_name>",
     )
     parser.add_argument(
         "-u",
-        "--upload_file",
+        "--get_file",
         nargs=2,
-        help="Upload a file from the FreeWili. Argument should be in the form of: <source_file> <target_name>",
+        help="Get a file from the FreeWili. Argument should be in the form of: <source_file> <target_name>",
     )
     parser.add_argument(
         "-w",
         "--run_script",
-        nargs=1,
-        help="Run a script on the FreeWili.",
+        nargs="?",
+        const=False,
+        help="Run a script on the FreeWili. If no argument is provided, -fn will be used.",
     )
     parser.add_argument(
         "-io",
@@ -111,24 +119,36 @@ def main() -> None:
         print(f"Found {len(devices)} FreeWili(s)")
         for i, free_wili in enumerate(devices, start=1):
             print(f"\t{i}. {free_wili}")
-    if args.download_file:
+    if args.send_file:
         match get_device(device_index):
             case Ok(device):
-                print(device.download_file(*args.download_file).unwrap())
+                if args.file_name:
+                    file_name = args.file_name[0]
+                else:
+                    file_name = "/scripts/" + pathlib.Path(args.send_file[0]).name
+                print(device.send_file(args.send_file[0], file_name).unwrap())
             case Err(msg):
                 exit_with_error(msg)
-    if args.upload_file:
+    if args.get_file:
         match get_device(device_index):
             case Ok(device):
-                data = device.upload_file(args.upload_file[0]).unwrap()
-                with open(args.upload_file[1], "w+b") as f:
+                data = device.get_file(args.upload_file[0]).unwrap()
+                with open(args.get_file[1], "w+b") as f:
                     f.write(data)
             case Err(msg):
                 exit_with_error(msg)
-    if args.run_script:
+    if args.run_script is not None:
         match get_device(device_index):
             case Ok(device):
-                print(device.run_script(*args.run_script).unwrap())
+                if args.run_script:
+                    script_name = args.run_script
+                elif args.file_name:
+                    script_name = args.file_name[0]
+                elif args.send_file:
+                    script_name = pathlib.Path(args.send_file[0]).name
+                else:
+                    raise ValueError("No script or file name provided")
+                print(device.run_script(script_name).unwrap())
             case Err(msg):
                 exit_with_error(msg)
     if args.set_io:
