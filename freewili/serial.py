@@ -28,6 +28,17 @@ class FreeWiliProcessorType(enum.Enum):
         return self.name
 
 
+@dataclasses.dataclass
+class FreeWiliAppInfo:
+    """Information of the FreeWili application."""
+
+    processor_type: FreeWiliProcessorType
+    version: int
+
+    def __str__(self) -> str:
+        return f"{self.processor_type} v{self.version}"
+
+
 # Disable menu Ctrl+b
 CMD_DISABLE_MENU = b"\x02"
 # Enable menu Ctrl+c
@@ -47,8 +58,8 @@ class FreeWiliSerialInfo:
     port: str
     # Serial number of the FreeWili
     serial: str
-    # Processor type of the FreeWili
-    processor_type: FreeWiliProcessorType
+    # Application information of the FreeWili firmware
+    app_info: FreeWiliAppInfo
     # USB Location of the FreeWili, Optional
     location: Optional[str] = None
     # Vendor ID of the FreeWili (0x2E8A), Optional
@@ -73,7 +84,7 @@ class FreeWiliSerial:
         return f"<{self.__class__.__name__} {self._info}>"
 
     def __str__(self) -> str:
-        return f"{self._info.processor_type} {self._info.port} @ {self._info.location}"
+        return f"{self._info.app_info} {self._info.port} @ {self._info.location}"
 
     @property
     def info(self) -> FreeWiliSerialInfo:
@@ -594,7 +605,7 @@ class FreeWiliSerial:
         time.sleep(delay_sec)
 
     @needs_open(True)
-    def detect_processor_type(self) -> Result[FreeWiliProcessorType, str]:
+    def get_app_info(self) -> Result[FreeWiliAppInfo, str]:
         """Detect the processor type of the FreeWili.
 
         Returns:
@@ -604,16 +615,32 @@ class FreeWiliSerial:
         """
         self._wait_for_serial_data(1.0)
         data = self._serial.read_all()
-        proc_type_regex = re.compile(r"(Main|Display) Processor")
-        match = proc_type_regex.search(data.decode())
-        if match is None:
-            return Ok(FreeWiliProcessorType.Unknown)
-        elif match.group() == "Main Processor":
-            return Ok(FreeWiliProcessorType.Main)
-        elif match.group() == "Display Processor":
-            return Ok(FreeWiliProcessorType.Display)
+        # proc_type_regex = re.compile(r"(Main|Display) Processor")
+        # match = proc_type_regex.search(data.decode())
+        # if match is None:
+        #     return Ok(FreeWiliProcessorType.Unknown)
+        # elif "Main Processor" in match.group():
+        #     return Ok(FreeWiliProcessorType.Main)
+        # elif "Display Processor" in match.group():
+        #     return Ok(FreeWiliProcessorType.Display)
+        # else:
+        #     return Err("Unknown processor type detected!")
+        line = ""
+        for line in data.decode().splitlines():
+            if "Processor" in line:
+                break
+        proc_type_regex = re.compile(r"(?:Main|Display)|(?:App version)|(?:\d+)")
+        results = proc_type_regex.findall(line)
+        if len(results) != 3:
+            return Ok(FreeWiliAppInfo(FreeWiliProcessorType.Unknown, 0))
+        processor = results[0]
+        version = results[2]
+        if "Main" in processor:
+            return Ok(FreeWiliAppInfo(FreeWiliProcessorType.Main, int(version)))
+        elif "Display" in processor:
+            return Ok(FreeWiliAppInfo(FreeWiliProcessorType.Display, int(version)))
         else:
-            return Err("Unknown processor type detected!")
+            return Ok(FreeWiliAppInfo(FreeWiliProcessorType.Unknown, 0))
 
 
 def find_all(processor_type: Optional[FreeWiliProcessorType] = None) -> tuple[FreeWiliSerial, ...]:
@@ -651,7 +678,10 @@ def find_all(processor_type: Optional[FreeWiliProcessorType] = None) -> tuple[Fr
                     FreeWiliSerialInfo(
                         port.device,
                         port.serial_number,
-                        FreeWiliProcessorType.Unknown,
+                        FreeWiliAppInfo(
+                            FreeWiliProcessorType.Unknown,
+                            0,
+                        ),
                         port.location,
                         port.vid,
                         port.pid,
@@ -660,17 +690,17 @@ def find_all(processor_type: Optional[FreeWiliProcessorType] = None) -> tuple[Fr
             )
             try:
                 # Update the processor type
-                processor = devices[-1].detect_processor_type().unwrap()
+                app_info = devices[-1].get_app_info().unwrap()
                 devices[-1]._info = FreeWiliSerialInfo(
                     port.device,
                     port.serial_number,
-                    processor,
+                    app_info,
                     port.location,
                     port.vid,
                     port.pid,
                 )
                 # Filter by processor type
-                if processor_type is not None and processor != processor_type:
+                if processor_type is not None and app_info.processor_type != processor_type:
                     devices.pop()
             except Exception as ex:
                 print(ex)
