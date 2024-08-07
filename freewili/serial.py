@@ -6,8 +6,10 @@ This module provides functionality to find and control FreeWili boards.
 import dataclasses
 import functools
 import pathlib
+import re
+import sys
 import time
-from typing import Any, Callable, Optional, Self
+from typing import Any, Callable, List, Optional, Self, Tuple
 
 import serial
 import serial.tools.list_ports
@@ -38,11 +40,15 @@ class FreeWiliSerialInfo:
 class FreeWiliSerial:
     """Class representing a serial connection to a FreeWili."""
 
-    def __init__(self, info: FreeWiliSerialInfo) -> None:
+    # The default number of bytes to write/read at a time
+    DEFAULT_SEGMENT_SIZE: int = 8
+
+    def __init__(self, info: FreeWiliSerialInfo, stay_open: bool = False) -> None:
         self._info: FreeWiliSerialInfo = info
-        self._serial: serial.Serial = serial.Serial(self._info.port)
+        self._serial: serial.Serial = serial.Serial(None, timeout=1.0)
         # Initialize to disable menus
         self._initialized: bool = False
+        self._stay_open: bool = stay_open
 
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__} {self._info}>"
@@ -54,6 +60,24 @@ class FreeWiliSerial:
     def info(self) -> FreeWiliSerialInfo:
         """Information of the COM Port of the FreeWili."""
         return self._info
+
+    @property
+    def stay_open(self) -> bool:
+        """Keep serial port open, if True.
+
+        Returns:
+            bool
+        """
+        return self._stay_open
+
+    @stay_open.setter
+    def stay_open(self, value: bool) -> None:
+        self._stay_open = value
+
+    def close(self) -> None:
+        """Close the serial port. Use in conjunction with stay_open."""
+        if self._serial.is_open:
+            self._serial.close()
 
     @staticmethod
     def needs_open() -> Callable:
@@ -82,33 +106,49 @@ class FreeWiliSerial:
             @functools.wraps(func)
             def wrapper(self: Self, *args: Optional[Any], **kwargs: Optional[Any]) -> Any | None:
                 if not self._serial.is_open:
+                    self._serial.port = self._info.port
                     self._serial.open()
                     self._init_serial_if_necessary()
                 try:
                     result = func(self, *args, **kwargs)
                     return result
                 finally:
-                    self._serial.close()
+                    if not self.stay_open:
+                        self._serial.close()
                     result = None
 
             return wrapper
 
         return decorator
 
+    def __enter__(self) -> Self:
+        if not self._serial.is_open:
+            self._serial.port = self._info.port
+            self._serial.open()
+        return self
+
+    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
+        if self._serial.is_open:
+            self._serial.close()
+
     def _init_serial_if_necessary(self) -> None:
         """Initialize the serial port if it hasn't been initialized yet."""
         if not self._initialized:
-            self._serial.reset_input_buffer()
             # disable menus (ctrl-b)
-            self._serial.write(bytes([2]))
-            self._initialized = True
+            self._serial.reset_output_buffer()
+            self._write_serial(b"\x02")
+            self._serial.reset_input_buffer()
+            time.sleep(1)
+            self._initialized = False
 
     def _write_serial(self, data: bytes) -> Result[str, str]:
         """Write data to the serial port."""
+        # print(f"DEBUG: {repr(data)}")
         try:
             length = self._serial.write(data)
             if length != len(data):
                 return Err(f"Only wrote {length} of {len(data)} bytes.")
+            self._serial.flush()
         except serial.SerialException as e:
             return Err(str(e))
         return Ok(f"Wrote {length} bytes successfully.")
@@ -126,52 +166,230 @@ class FreeWiliSerial:
 
         Returns:
         -------
-            int :
-                The number of bytes written to the serial port.
+            Result[str, str]:
+                Ok(str) if the command was sent successfully, Err(str) if not.
         """
         letter = "h" if high else "l"
-        command = f"{letter}\n{io}\n".encode()
+        command = f"{letter}\n{io}\n".encode("ascii")
         return self._write_serial(command)
 
     @needs_open()
-    def gen_pwm(self, io_number: int, freq: float, duty: float) -> None:
-        """TODO: Docstring."""
-        stosend = "o\n" + str(io_number) + " " + str(freq) + " " + str(duty) + "\n"
-        self._serial.write(bytes(stosend, "ascii"))
+    def generate_pwm(self, io: int, freq: int, duty: int) -> Result[str, str]:
+        """Set PWM on an IO pin.
+
+        Parameters:
+        ----------
+            io : int
+                The number of the IO pin to set.
+            freq : int
+                The PWM frequency in Hz.
+            duty : int
+                The duty cycle of the PWM. 0-100.
+
+        Returns:
+        -------
+            Result[str, str]:
+                Ok(str) if the command was sent successfully, Err(str) if not.
+        """
+        command = f"o\n{io} {freq} {duty}\n".encode("ascii")
+        return self._write_serial(command)
 
     @needs_open()
-    def get_all_io(self) -> bytes:
-        """TODO: Docstring."""
-        self._serial.reset_input_buffer()
-        stosend = "g\n"
-        self._serial.write(bytes(stosend, "ascii"))
-        time.sleep(0.2)
-        return self._serial.readline()
+    def get_all_io(self) -> Result[int, str]:
+        """Get all the IO values.
+
+        Parameters:
+        ----------
+            None
+
+        Returns:
+        -------
+            Result[int, str]:
+                Ok(int) if the command was sent successfully, Err(str) if not.
+        """
+        try:
+            result = self._write_serial(b"g\n")
+            if result.is_err():
+                return Err(str(result.err()))
+            # Wait for data to return, should be 4 bytes (sizeof(int) + sizeof('\n'))
+            data = self._serial.read((4 * 2) + 1)
+            return Ok(int(data.decode().strip(), 16))
+        except serial.SerialException as e:
+            return Err(str(e))
+
+    def _write_and_read_bytes_cmd(self, command: str, data: bytes, data_segment_size: int) -> Result[bytes, str]:
+        """Write and read bytes from a command.
+
+        Parameters:
+        ----------
+            command : str
+                The command to send. Should end with a newline.
+            data : bytes
+                The data to write.
+            data_segment_size : int
+                The number of bytes to read/write at a time.
+
+        Returns:
+        -------
+            Result[bytes, str]:
+                Ok(bytes) if the command was sent successfully, Err(str) if not.
+        """
+        hex_reg = re.compile(r"[A-Fa-f0-9]{1,2}")
+        read_bytes = bytearray()
+        for i in range(0, len(data), data_segment_size):
+            str_hex_data = " ".join(f"{i:02X}" for i in data[i : i + data_segment_size])
+            self._serial.write(f"{command}{str_hex_data}\n".encode("ascii"))
+            read_data = self._serial.readline().strip()
+            for value in hex_reg.findall(read_data.decode()):
+                read_bytes += int(value, 16).to_bytes(1, sys.byteorder)
+        return Ok(bytes(read_bytes))
 
     @needs_open()
-    def read_write_spi_data(self, data: bytes) -> bytes:
-        """TODO: Docstring."""
-        raise NotImplementedError
+    def read_write_spi_data(self, data: bytes) -> Result[bytes, str]:
+        """Read and Write SPI data.
+
+        Parameters:
+        ----------
+            data : bytes
+                The data to write.
+
+        Returns:
+        -------
+            Result[bytes, str]:
+                Ok(bytes) if the command was sent successfully, Err(str) if not.
+        """
+        return self._write_and_read_bytes_cmd("s\n", data, self.DEFAULT_SEGMENT_SIZE)
 
     @needs_open()
-    def write_i2c(self, address: int, register: int, data: bytes) -> int:
-        """TODO: Docstring."""
-        raise NotImplementedError
+    def write_i2c(self, address: int, register: int, data: bytes) -> Result[bytes, str]:
+        """Write I2C data.
+
+        Parameters:
+        ----------
+            address : int
+                The address to write to.
+            register : int
+                The register to write to.
+            data : bytes
+                The data to write.
+
+        Returns:
+        -------
+            Result[bytes, str]:
+                Ok(bytes) if the command was sent successfully, Err(str) if not.
+        """
+        complete_data = address.to_bytes(1, sys.byteorder) + register.to_bytes(1, sys.byteorder) + data
+        return self._write_and_read_bytes_cmd("i\n", complete_data, self.DEFAULT_SEGMENT_SIZE)
 
     @needs_open()
-    def write_radio(self, radio: int, data: bytes) -> int:
-        """TODO: Docstring."""
-        raise NotImplementedError
+    def read_i2c(self, address: int, register: int, data_size: int) -> Result[bytes, str]:
+        """Read I2C data.
+
+        Parameters:
+        ----------
+            address : int
+                The address to write to.
+            register : int
+                The register to write to.
+            data_size : int
+                The number of bytes to read.
+
+        Returns:
+        -------
+            Result[bytes, str]:
+                Ok(bytes) if the command was sent successfully, Err(str) if not.
+        """
+        complete_data = (
+            address.to_bytes(1, sys.byteorder)
+            + register.to_bytes(1, sys.byteorder)
+            + data_size.to_bytes(1, sys.byteorder)
+        )
+        return self._write_and_read_bytes_cmd("i\n", complete_data, self.DEFAULT_SEGMENT_SIZE)
 
     @needs_open()
-    def read_radio(self, radio: int, length: int) -> bytes:
-        """TODO: Docstring."""
-        raise NotImplementedError
+    def poll_i2c(self) -> Result[Tuple[int, ...], str]:
+        """Run a script on the FreeWili.
+
+        Arguments:
+        ----------
+        file_name: str
+            Name of the file in the FreeWili. 8.3 filename limit exists as of V12
+
+        Returns:
+        -------
+            Result[str, str]:
+                Ok(List[int]) if the command was sent successfully, Err(str) if not.
+        """
+
+        def _process_line(line: str) -> List[int]:
+            """Process a line of hex values seperated by a space and returns a list of int."""
+            hex_reg = re.compile(r"[A-Fa-f0-9]{1,2}")
+            values = []
+            for value in hex_reg.findall(line):
+                values.append(int(value, 16))
+            return values
+
+        match self._write_serial("p\n".encode("ascii")):
+            case Ok(_):
+                found_addresses = []
+                first_line_processed: bool = False
+                while line := self._serial.readline():
+                    if not first_line_processed:
+                        first_line_processed = True
+                        continue
+                    addresses = _process_line(line.decode().lstrip().rstrip())
+                    found_addresses.extend([addr for addr in addresses[1:] if addr != 0])
+                return Ok(tuple(found_addresses))
+            case Err(e):
+                return Err(e)
 
     @needs_open()
-    def write_uart(self, data: bytes) -> None:
-        """TODO: Docstring."""
-        raise NotImplementedError
+    def write_radio(self, data: bytes) -> Result[bytes, str]:
+        """Write radio data.
+
+        Parameters:
+        ----------
+            data : bytes
+                The data to write.
+
+        Returns:
+        -------
+            Result[bytes, str]:
+                Ok(bytes) if the command was sent successfully, Err(str) if not.
+        """
+        return self._write_and_read_bytes_cmd("t\n", data, self.DEFAULT_SEGMENT_SIZE)
+
+    @needs_open()
+    def read_radio(self, data: bytes) -> Result[bytes, str]:
+        """Read radio data.
+
+        Parameters:
+        ----------
+            data : bytes
+                The data to write.
+
+        Returns:
+        -------
+            Result[bytes, str]:
+                Ok(bytes) if the command was sent successfully, Err(str) if not.
+        """
+        return self._write_and_read_bytes_cmd("k\n", data, self.DEFAULT_SEGMENT_SIZE)
+
+    @needs_open()
+    def write_uart(self, data: bytes) -> Result[bytes, str]:
+        """Write uart data.
+
+        Parameters:
+        ----------
+            data : bytes
+                The data to write.
+
+        Returns:
+        -------
+            Result[bytes, str]:
+                Ok(bytes) if the command was sent successfully, Err(str) if not.
+        """
+        return self._write_and_read_bytes_cmd("u\n", data, self.DEFAULT_SEGMENT_SIZE)
 
     @needs_open()
     def enable_stream(self, enable: bool) -> None:
@@ -179,45 +397,120 @@ class FreeWiliSerial:
         raise NotImplementedError
 
     @needs_open()
-    def run_script(self, script_path: str) -> None:
-        """TODO: Docstring."""
-        raise NotImplementedError
-
-    @needs_open()
-    def load_fpga_from_file(self, bit_file_path: pathlib.Path) -> None:
-        """TODO: Docstring."""
-        raise NotImplementedError
-
-    @needs_open()
-    def download_file(self, source_file: pathlib.Path, target_name: str) -> Result[str, str]:
-        """Download a file to the FreeWili.
+    def run_script(self, file_name: str) -> Result[str, str]:
+        """Run a script on the FreeWili.
 
         Arguments:
         ----------
-        source_file: pathlib.Path
-            Path to the file to be downloaded
-        target_name: str
+        file_name: str
             Name of the file in the FreeWili. 8.3 filename limit exists as of V12
 
         Returns:
         -------
             Result[str, str]:
-                TODO
+                Ok(str) if the command was sent successfully, Err(str) if not.
+        """
+        print(f"Running script '{file_name}' on {self}...")
+        match self._write_serial(f"w\n{file_name}\n".encode("ascii")):
+            case Ok(_):
+                read_bytes = []
+                while byte := self._serial.read(1):
+                    read_bytes.append(byte.decode())
+                return Ok("".join(read_bytes))
+            case Err(e):
+                return Err(e)
+
+    @needs_open()
+    def load_fpga_from_file(self, file_name: str) -> Result[str, str]:
+        """Load an FGPA from a file on the FreeWili.
+
+        Arguments:
+        ----------
+        file_name: str
+            Name of the file in the FreeWili. 8.3 filename limit exists as of V12
+
+        Returns:
+        -------
+            Result[str, str]:
+                Ok(str) if the command was sent successfully, Err(str) if not.
+        """
+        match self._write_serial(f"m\n{file_name}\n".encode("ascii")):
+            case Ok(_):
+                read_bytes = []
+                while byte := self._serial.read(1):
+                    read_bytes.append(byte.decode())
+                return Ok("".join(read_bytes))
+            case Err(e):
+                return Err(e)
+
+    @needs_open()
+    def send_file(self, source_file: pathlib.Path, target_name: str) -> Result[str, str]:
+        """Send a file to the FreeWili.
+
+        Arguments:
+        ----------
+        source_file: pathlib.Path
+            Path to the file to be sent.
+        target_name: str
+            Name of the file in the FreeWili.
+
+        Returns:
+        -------
+            Result[str, str]:
+                Returns Ok(str) if the command was sent successfully, Err(str) if not.
         """
         if not isinstance(source_file, pathlib.Path):
             source_file = pathlib.Path(source_file)
         if not source_file.exists():
             return Err(f"{source_file} does not exist.")
         fsize = source_file.stat().st_size
-        match self._write_serial(f"x\nf\n{target_name} {fsize}\n".encode()):
+        # generate the checksum
+        checksum = 0
+        with source_file.open("rb") as f:
+            while byte := f.read(1):
+                checksum += int.from_bytes(byte)
+                if checksum & 0x8000:
+                    checksum ^= 2054
+                checksum &= 0xFFFFFF
+        # send the download command
+        self._serial.read_all()
+        match self._write_serial(f"x\nf\n{target_name} {fsize} {checksum}\n".encode("ascii")):
             case Ok(_):
+                time.sleep(1)
+                # print(self._serial.read_all())
                 print(f"Downloading {source_file} ({fsize} bytes) as {target_name} on {self}")
                 with source_file.open("rb") as f:
                     while byte := f.read(1):
-                        if self._serial.write(byte) != 1:
+                        # print(byte)
+                        if self._serial.write(byte) != len(byte):
                             return Err(f"Failed to write {byte.decode()} to {self}")
-                    print(f"Downloaded {fsize} bytes!")
+                        # print(self._serial.read_all())
+                        # time.sleep(0.002)
                 return Ok(f"Downloaded {source_file} ({fsize} bytes) as {target_name} to {self}")
+            case Err(e):
+                return Err(e)
+
+    @needs_open()
+    def get_file(self, source_file: str) -> Result[bytearray, str]:
+        """Get a file from the FreeWili.
+
+        Arguments:
+        ----------
+        source_file: str
+            Name of the file in the FreeWili. 8.3 filename limit exists as of V12
+
+        Returns:
+        -------
+            Result[bytearray, str]:
+                Returns an array of bytes if the command was sent successfully, Err(str) if not.
+        """
+        # Clear anything in the buffer
+        _ = self._serial.read_all()
+        match self._write_serial(f"x\nu\n{source_file}\n".encode("ascii")):
+            case Ok(_):
+                time.sleep(0.5)
+                data = self._serial.read_all()
+                return Ok(data)
             case Err(e):
                 return Err(e)
 

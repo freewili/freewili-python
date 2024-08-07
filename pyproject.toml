@@ -13,6 +13,7 @@ keywords = ["freewili"]
 python = "^3.11"
 pyserial = "^3.5"
 result = "^0.17.0"
+pillow = "^10.4.0"
 
 
 [tool.poetry.group.dev.dependencies]
@@ -26,6 +27,7 @@ build-backend = "poetry_dynamic_versioning.backend"
 
 [tool.poetry.scripts]
 fwi-serial = 'freewili.cli:main'
+fwi-convert = 'freewili.cli:convert'
 
 [tool.mypy]
 ignore_missing_imports = true
