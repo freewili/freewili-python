@@ -338,7 +338,10 @@ class FreeWiliSerial:
                         first_line_processed = True
                         continue
                     addresses = _process_line(line.decode().lstrip().rstrip())
-                    found_addresses.extend([addr for addr in addresses[1:] if addr != 0])
+                    addr_un = addresses[0] # Address upper nibble
+                    found_addresses.extend(
+                            [addr_un + addr_ln for addr_ln, found in enumerate(addresses[1:]) if found != 0]
+                        )
                 return Ok(tuple(found_addresses))
             case Err(e):
                 return Err(e)
