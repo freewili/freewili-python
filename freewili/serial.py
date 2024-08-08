@@ -4,6 +4,7 @@ This module provides functionality to find and control FreeWili boards.
 """
 
 import dataclasses
+import enum
 import functools
 import pathlib
 import re
@@ -14,6 +15,34 @@ from typing import Any, Callable, List, Optional, Self, Tuple
 import serial
 import serial.tools.list_ports
 from result import Err, Ok, Result
+
+
+class FreeWiliProcessorType(enum.Enum):
+    """Processor type of the FreeWili."""
+
+    Unknown = enum.auto()
+    Main = enum.auto()
+    Display = enum.auto()
+
+    def __str__(self) -> str:
+        return self.name
+
+
+@dataclasses.dataclass
+class FreeWiliAppInfo:
+    """Information of the FreeWili application."""
+
+    processor_type: FreeWiliProcessorType
+    version: int
+
+    def __str__(self) -> str:
+        return f"{self.processor_type} v{self.version}"
+
+
+# Disable menu Ctrl+b
+CMD_DISABLE_MENU = b"\x02"
+# Enable menu Ctrl+c
+CMD_ENABLE_MENU = b"\x03"
 
 # Raspberry Pi Vendor ID
 RPI_VID = 0x2E8A
@@ -29,6 +58,8 @@ class FreeWiliSerialInfo:
     port: str
     # Serial number of the FreeWili
     serial: str
+    # Application information of the FreeWili firmware
+    app_info: FreeWiliAppInfo
     # USB Location of the FreeWili, Optional
     location: Optional[str] = None
     # Vendor ID of the FreeWili (0x2E8A), Optional
@@ -47,14 +78,13 @@ class FreeWiliSerial:
         self._info: FreeWiliSerialInfo = info
         self._serial: serial.Serial = serial.Serial(None, timeout=1.0)
         # Initialize to disable menus
-        self._initialized: bool = False
         self._stay_open: bool = stay_open
 
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__} {self._info}>"
 
     def __str__(self) -> str:
-        return f"{self.__class__.__name__} {self._info.port} @ {self._info.location}"
+        return f"{self._info.app_info} {self._info.port} @ {self._info.location}"
 
     @property
     def info(self) -> FreeWiliSerialInfo:
@@ -80,7 +110,7 @@ class FreeWiliSerial:
             self._serial.close()
 
     @staticmethod
-    def needs_open() -> Callable:
+    def needs_open(enable_menu: bool = False) -> Callable:
         """Decorator to open and close serial port.
 
         Expects the class to have an attribute '_serial' that is a serial.Serial object
@@ -88,12 +118,13 @@ class FreeWiliSerial:
 
         Parameters:
         ----------
-            None
+            enable_menu: bool
+                Enable menu if True. Defaults to False.
 
         Example:
         -------
         >>> class MyClass:
-        >>>     @needs_open
+        >>>     @needs_open(False)
         >>>     def my_method(self):
         >>>         pass
         >>>
@@ -108,7 +139,7 @@ class FreeWiliSerial:
                 if not self._serial.is_open:
                     self._serial.port = self._info.port
                     self._serial.open()
-                    self._init_serial_if_necessary()
+                    self._set_menu_enabled(enable_menu)
                 try:
                     result = func(self, *args, **kwargs)
                     return result
@@ -131,15 +162,24 @@ class FreeWiliSerial:
         if self._serial.is_open:
             self._serial.close()
 
-    def _init_serial_if_necessary(self) -> None:
-        """Initialize the serial port if it hasn't been initialized yet."""
-        if not self._initialized:
-            # disable menus (ctrl-b)
-            self._serial.reset_output_buffer()
-            self._write_serial(b"\x02")
-            self._serial.reset_input_buffer()
-            time.sleep(1)
-            self._initialized = False
+    def _set_menu_enabled(self, enabled: bool) -> None:
+        """Enable or disable menus.
+
+        Parameters:
+        ----------
+            enabled: bool
+                True to enable menus, False to disable.
+
+        Returns:
+        -------
+            None
+        """
+        self._serial.reset_output_buffer()
+        self._serial.reset_input_buffer()
+        cmd = CMD_ENABLE_MENU if enabled else CMD_DISABLE_MENU
+        cmd += "\r\n".encode("ascii")
+        self._write_serial(cmd)
+        self._serial.flush()
 
     def _write_serial(self, data: bytes) -> Result[str, str]:
         """Write data to the serial port."""
@@ -153,7 +193,7 @@ class FreeWiliSerial:
             return Err(str(e))
         return Ok(f"Wrote {length} bytes successfully.")
 
-    @needs_open()
+    @needs_open(False)
     def set_io(self: Self, io: int, high: bool) -> Result[str, str]:
         """Set the state of an IO pin to high or low.
 
@@ -173,7 +213,7 @@ class FreeWiliSerial:
         command = f"{letter}\n{io}\n".encode("ascii")
         return self._write_serial(command)
 
-    @needs_open()
+    @needs_open(False)
     def generate_pwm(self, io: int, freq: int, duty: int) -> Result[str, str]:
         """Set PWM on an IO pin.
 
@@ -194,7 +234,7 @@ class FreeWiliSerial:
         command = f"o\n{io} {freq} {duty}\n".encode("ascii")
         return self._write_serial(command)
 
-    @needs_open()
+    @needs_open(False)
     def get_all_io(self) -> Result[int, str]:
         """Get all the IO values.
 
@@ -244,7 +284,7 @@ class FreeWiliSerial:
                 read_bytes += int(value, 16).to_bytes(1, sys.byteorder)
         return Ok(bytes(read_bytes))
 
-    @needs_open()
+    @needs_open(False)
     def read_write_spi_data(self, data: bytes) -> Result[bytes, str]:
         """Read and Write SPI data.
 
@@ -260,7 +300,7 @@ class FreeWiliSerial:
         """
         return self._write_and_read_bytes_cmd("s\n", data, self.DEFAULT_SEGMENT_SIZE)
 
-    @needs_open()
+    @needs_open(False)
     def write_i2c(self, address: int, register: int, data: bytes) -> Result[bytes, str]:
         """Write I2C data.
 
@@ -281,7 +321,7 @@ class FreeWiliSerial:
         complete_data = address.to_bytes(1, sys.byteorder) + register.to_bytes(1, sys.byteorder) + data
         return self._write_and_read_bytes_cmd("i\n", complete_data, self.DEFAULT_SEGMENT_SIZE)
 
-    @needs_open()
+    @needs_open(False)
     def read_i2c(self, address: int, register: int, data_size: int) -> Result[bytes, str]:
         """Read I2C data.
 
@@ -306,7 +346,7 @@ class FreeWiliSerial:
         )
         return self._write_and_read_bytes_cmd("i\n", complete_data, self.DEFAULT_SEGMENT_SIZE)
 
-    @needs_open()
+    @needs_open(False)
     def poll_i2c(self) -> Result[Tuple[int, ...], str]:
         """Run a script on the FreeWili.
 
@@ -343,7 +383,7 @@ class FreeWiliSerial:
             case Err(e):
                 return Err(e)
 
-    @needs_open()
+    @needs_open(False)
     def write_radio(self, data: bytes) -> Result[bytes, str]:
         """Write radio data.
 
@@ -359,7 +399,7 @@ class FreeWiliSerial:
         """
         return self._write_and_read_bytes_cmd("t\n", data, self.DEFAULT_SEGMENT_SIZE)
 
-    @needs_open()
+    @needs_open(False)
     def read_radio(self, data: bytes) -> Result[bytes, str]:
         """Read radio data.
 
@@ -375,7 +415,7 @@ class FreeWiliSerial:
         """
         return self._write_and_read_bytes_cmd("k\n", data, self.DEFAULT_SEGMENT_SIZE)
 
-    @needs_open()
+    @needs_open(False)
     def write_uart(self, data: bytes) -> Result[bytes, str]:
         """Write uart data.
 
@@ -391,12 +431,12 @@ class FreeWiliSerial:
         """
         return self._write_and_read_bytes_cmd("u\n", data, self.DEFAULT_SEGMENT_SIZE)
 
-    @needs_open()
+    @needs_open(False)
     def enable_stream(self, enable: bool) -> None:
         """TODO: Docstring."""
         raise NotImplementedError
 
-    @needs_open()
+    @needs_open(False)
     def run_script(self, file_name: str) -> Result[str, str]:
         """Run a script on the FreeWili.
 
@@ -420,7 +460,7 @@ class FreeWiliSerial:
             case Err(e):
                 return Err(e)
 
-    @needs_open()
+    @needs_open(False)
     def load_fpga_from_file(self, file_name: str) -> Result[str, str]:
         """Load an FGPA from a file on the FreeWili.
 
@@ -443,7 +483,7 @@ class FreeWiliSerial:
             case Err(e):
                 return Err(e)
 
-    @needs_open()
+    @needs_open(False)
     def send_file(self, source_file: pathlib.Path, target_name: str) -> Result[str, str]:
         """Send a file to the FreeWili.
 
@@ -476,7 +516,7 @@ class FreeWiliSerial:
         self._serial.read_all()
         match self._write_serial(f"x\nf\n{target_name} {fsize} {checksum}\n".encode("ascii")):
             case Ok(_):
-                time.sleep(1)
+                time.sleep(0.25)  # self._wait_for_serial_data(1.0, 0.1)
                 # print(self._serial.read_all())
                 print(f"Downloading {source_file} ({fsize} bytes) as {target_name} on {self}")
                 with source_file.open("rb") as f:
@@ -490,7 +530,7 @@ class FreeWiliSerial:
             case Err(e):
                 return Err(e)
 
-    @needs_open()
+    @needs_open(False)
     def get_file(self, source_file: str) -> Result[bytearray, str]:
         """Get a file from the FreeWili.
 
@@ -508,14 +548,102 @@ class FreeWiliSerial:
         _ = self._serial.read_all()
         match self._write_serial(f"x\nu\n{source_file}\n".encode("ascii")):
             case Ok(_):
-                time.sleep(0.5)
+                time.sleep(1)
                 data = self._serial.read_all()
                 return Ok(data)
             case Err(e):
                 return Err(e)
 
+    def reset_to_uf2_bootloader(self) -> Result[None, str]:
+        """Reset the FreeWili to the uf2 bootloader.
 
-def find_all() -> tuple[FreeWiliSerial, ...]:
+        Returns:
+        -------
+            Result[None, str]:
+                Returns Ok(None) if the command was sent successfully, Err(str) if not.
+        """
+        original_baudrate = self._serial.baudrate
+        try:
+            if self._serial.is_open:
+                self._serial.close()
+            else:
+                self._serial.port = self._info.port
+            self._serial.baudrate = 1200
+            self._serial.open()
+            time.sleep(0.1)
+            self._serial.close()
+            return Ok(None)
+        except serial.serialutil.SerialException as ex:
+            return Err(str(ex))
+        finally:
+            self._serial.baudrate = original_baudrate
+
+    def _wait_for_serial_data(self, timeout_sec: float, delay_sec: float = 0.1) -> None:
+        """Wait for data to be available on the serial port.
+
+        Parameters:
+        ----------
+            timeout_sec: float
+                The maximum amount of time to wait for data.
+            delay_sec: float
+                The amount of time to wait after checks for data.
+
+        Returns:
+        -------
+            None
+
+        Raises:
+        -------
+            TimeoutError
+                If the timeout is reached before data is available.
+        """
+        start = time.time()
+        while self._serial.in_waiting == 0:
+            time.sleep(0.001)
+            if time.time() - start > timeout_sec:
+                raise TimeoutError(f"Timed out waiting for data on {self}")
+        time.sleep(delay_sec)
+
+    @needs_open(True)
+    def get_app_info(self) -> Result[FreeWiliAppInfo, str]:
+        """Detect the processor type of the FreeWili.
+
+        Returns:
+        -------
+            Result[FreeWiliProcessorType, str]:
+                Returns Ok(FreeWiliProcessorType) if the command was sent successfully, Err(str) if not.
+        """
+        self._wait_for_serial_data(1.0)
+        data = self._serial.read_all()
+        # proc_type_regex = re.compile(r"(Main|Display) Processor")
+        # match = proc_type_regex.search(data.decode())
+        # if match is None:
+        #     return Ok(FreeWiliProcessorType.Unknown)
+        # elif "Main Processor" in match.group():
+        #     return Ok(FreeWiliProcessorType.Main)
+        # elif "Display Processor" in match.group():
+        #     return Ok(FreeWiliProcessorType.Display)
+        # else:
+        #     return Err("Unknown processor type detected!")
+        line = ""
+        for line in data.decode().splitlines():
+            if "Processor" in line:
+                break
+        proc_type_regex = re.compile(r"(?:Main|Display)|(?:App version)|(?:\d+)")
+        results = proc_type_regex.findall(line)
+        if len(results) != 3:
+            return Ok(FreeWiliAppInfo(FreeWiliProcessorType.Unknown, 0))
+        processor = results[0]
+        version = results[2]
+        if "Main" in processor:
+            return Ok(FreeWiliAppInfo(FreeWiliProcessorType.Main, int(version)))
+        elif "Display" in processor:
+            return Ok(FreeWiliAppInfo(FreeWiliProcessorType.Display, int(version)))
+        else:
+            return Ok(FreeWiliAppInfo(FreeWiliProcessorType.Unknown, 0))
+
+
+def find_all(processor_type: Optional[FreeWiliProcessorType] = None) -> tuple[FreeWiliSerial, ...]:
     """Finds all FreeWili connected to the computer.
 
     Returns:
@@ -550,10 +678,31 @@ def find_all() -> tuple[FreeWiliSerial, ...]:
                     FreeWiliSerialInfo(
                         port.device,
                         port.serial_number,
+                        FreeWiliAppInfo(
+                            FreeWiliProcessorType.Unknown,
+                            0,
+                        ),
                         port.location,
                         port.vid,
                         port.pid,
                     )
                 ),
             )
+            try:
+                # Update the processor type
+                app_info = devices[-1].get_app_info().unwrap()
+                devices[-1]._info = FreeWiliSerialInfo(
+                    port.device,
+                    port.serial_number,
+                    app_info,
+                    port.location,
+                    port.vid,
+                    port.pid,
+                )
+                # Filter by processor type
+                if processor_type is not None and app_info.processor_type != processor_type:
+                    devices.pop()
+            except Exception as ex:
+                print(ex)
+                pass
     return tuple(devices)

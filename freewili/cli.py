@@ -132,7 +132,7 @@ def main() -> None:
     if args.get_file:
         match get_device(device_index):
             case Ok(device):
-                data = device.get_file(args.upload_file[0]).unwrap()
+                data = device.get_file(args.get_file[0]).unwrap()
                 with open(args.get_file[1], "w+b") as f:
                     f.write(data)
             case Err(msg):
