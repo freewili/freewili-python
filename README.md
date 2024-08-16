@@ -45,13 +45,17 @@ Ok([1, 2])
 ## fwi-serial command line usage
 
 ```
-usage: fwi-serial [-h] [-l] [-i INDEX] [-s SEND_FILE] [-fn FILE_NAME] [-u GET_FILE GET_FILE] [-w [RUN_SCRIPT]] [-io SET_IO SET_IO] [--version]
+usage: fwi-serial [-h] [-l] [-i INDEX] [-di DISPLAY_INDEX] [-mi MAIN_INDEX] [-s SEND_FILE] [-fn FILE_NAME] [-u GET_FILE GET_FILE] [-w [RUN_SCRIPT]] [-io SET_IO SET_IO] [--version]
 
 options:
   -h, --help            show this help message and exit
   -l, --list            List all FreeWili connected to the computer.
   -i INDEX, --index INDEX
                         Select a specific FreeWili by index. The first FreeWili is 1.
+  -di DISPLAY_INDEX, --display_index DISPLAY_INDEX
+                        Select a specific FreeWili display processor by index. The first FreeWili is 1.
+  -mi MAIN_INDEX, --main_index MAIN_INDEX
+                        Select a specific FreeWili main processor by index. The first FreeWili is 1.
   -s SEND_FILE, --send_file SEND_FILE
                         send a file to the FreeWili. Argument should be in the form of: <source_file>
   -fn FILE_NAME, --file_name FILE_NAME
@@ -83,6 +87,16 @@ $ fwi-serial -w bin.wasm
 $ fwi-serial -io 25 high
 ```
 
+### Convert JPEG or PNG file to FWI
+```bash
+$ fwi-convert -i ~/Downloads/mypicture.png -o mypicture.fwi
+bytearray(b'FW01IMG\x00')
+png or JPG file "/home/drebbe/Downloads/mypicture.png" converted to FreeWili image file "mypicture.fwi
+
+$ fwi-serial -di 1 -s mypicture.fwi -fn /images/mypicture.fwi
+Downloading mypicture.fwi (81816 bytes) as /images/mypicture.fwi on Display v28 /dev/ttyACM1 @ 1-2.2:1.0
+Downloaded mypicture.fwi (81816 bytes) as /images/mypicture.fwi to Display v28 /dev/ttyACM1 @ 1-2.2:1.0
+```
 ## Development
 
 ```
@@ -95,9 +109,9 @@ pre-commit install
 ```
 
 ### Dependencies
-#### Installing Python 3.11+
+#### Installing Python 3.10+
 
-If you don't already have Python 3.11+ installed, you can download it from the official Python website: <https://www.python.org/downloads/>. Follow the installation instructions for your operating system.
+If you don't already have Python 3.10+ installed, you can download it from the official Python website: <https://www.python.org/downloads/>. Follow the installation instructions for your operating system.
 
 #### Installing Poetry
 

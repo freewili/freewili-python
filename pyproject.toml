@@ -10,10 +10,11 @@ repository = "https://github.com/freewili/freewili-python"
 keywords = ["freewili"]
 
 [tool.poetry.dependencies]
-python = "^3.11"
+python = "^3.10"
 pyserial = "^3.5"
 result = "^0.17.0"
 pillow = "^10.4.0"
+typing-extensions = "^4.12.2"
 
 
 [tool.poetry.group.dev.dependencies]

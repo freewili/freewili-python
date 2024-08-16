@@ -6,11 +6,17 @@ This module provides functionality to find and control FreeWili boards.
 import dataclasses
 import enum
 import functools
+import os
 import pathlib
 import re
 import sys
 import time
-from typing import Any, Callable, List, Optional, Self, Tuple
+from typing import Any, Callable, List, Optional, Tuple
+
+try:
+    from typing import Self
+except ImportError:
+    from typing_extensions import Self
 
 import serial
 import serial.tools.list_ports
@@ -502,6 +508,10 @@ class FreeWiliSerial:
             Result[str, str]:
                 Returns Ok(str) if the command was sent successfully, Err(str) if not.
         """
+        delay_ms_env = os.getenv("FWI_DELAY_MS")
+        if not delay_ms_env:
+            delay_ms_env = "50"
+        delay_ms: int = int(delay_ms_env, 10)
         if not isinstance(source_file, pathlib.Path):
             source_file = pathlib.Path(source_file)
         if not source_file.exists():
@@ -519,7 +529,7 @@ class FreeWiliSerial:
         self._serial.read_all()
         match self._write_serial(f"x\nf\n{target_name} {fsize} {checksum}\n".encode("ascii")):
             case Ok(_):
-                time.sleep(0.25)  # self._wait_for_serial_data(1.0, 0.1)
+                time.sleep(delay_ms / 1000.0)  # self._wait_for_serial_data(1.0, 0.1)
                 # print(self._serial.read_all())
                 print(f"Downloading {source_file} ({fsize} bytes) as {target_name} on {self}")
                 with source_file.open("rb") as f:

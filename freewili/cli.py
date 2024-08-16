@@ -7,10 +7,12 @@ import argparse
 import importlib.metadata
 import pathlib
 import sys
+from typing import Union
 
 from result import Err, Ok, Result
 
 from freewili import image, serial
+from freewili.serial import FreeWiliProcessorType
 
 
 def exit_with_error(msg: str, exit_code: int = 1) -> None:
@@ -31,7 +33,9 @@ def exit_with_error(msg: str, exit_code: int = 1) -> None:
     sys.exit(exit_code)
 
 
-def get_device(index: int) -> Result[serial.FreeWiliSerial, str]:
+def get_device(
+    index: int, processor_type: Union[FreeWiliProcessorType | None] = None
+) -> Result[serial.FreeWiliSerial, str]:
     """Get a FreeWiliSerial by index.
 
     Parameters:
@@ -44,7 +48,7 @@ def get_device(index: int) -> Result[serial.FreeWiliSerial, str]:
         Result[serial.FreeWiliSerial, str]:
             The FreeWiliSerial if the index is valid, otherwise an error message.
     """
-    devices = serial.find_all()
+    devices = serial.find_all(processor_type)
     if index >= len(devices):
         return Err(f"Index {index} is out of range. There are only {len(devices)} devices.")
     return Ok(devices[index])
@@ -75,6 +79,20 @@ def main() -> None:
         type=int,
         default=1,
         help="Select a specific FreeWili by index. The first FreeWili is 1.",
+    )
+    parser.add_argument(
+        "-di",
+        "--display_index",
+        type=int,
+        default=None,
+        help="Select a specific FreeWili display processor by index. The first FreeWili is 1.",
+    )
+    parser.add_argument(
+        "-mi",
+        "--main_index",
+        type=int,
+        default=None,
+        help="Select a specific FreeWili main processor by index. The first FreeWili is 1.",
     )
     parser.add_argument(
         "-s",
@@ -114,13 +132,19 @@ def main() -> None:
     )
     args = parser.parse_args()
     device_index: int = args.index - 1
+    processor_type = None
+    if args.main_index is not None:
+        processor_type = FreeWiliProcessorType.Main
+    elif args.display_index is not None:
+        processor_type = FreeWiliProcessorType.Display
+
     if args.list:
-        devices = serial.find_all()
+        devices = serial.find_all(processor_type)
         print(f"Found {len(devices)} FreeWili(s)")
         for i, free_wili in enumerate(devices, start=1):
             print(f"\t{i}. {free_wili}")
     if args.send_file:
-        match get_device(device_index):
+        match get_device(device_index, processor_type):
             case Ok(device):
                 if args.file_name:
                     file_name = args.file_name[0]
@@ -130,7 +154,7 @@ def main() -> None:
             case Err(msg):
                 exit_with_error(msg)
     if args.get_file:
-        match get_device(device_index):
+        match get_device(device_index, processor_type):
             case Ok(device):
                 data = device.get_file(args.get_file[0]).unwrap()
                 with open(args.get_file[1], "w+b") as f:
@@ -138,7 +162,7 @@ def main() -> None:
             case Err(msg):
                 exit_with_error(msg)
     if args.run_script is not None:
-        match get_device(device_index):
+        match get_device(device_index, processor_type):
             case Ok(device):
                 if args.run_script:
                     script_name = args.run_script
@@ -154,7 +178,7 @@ def main() -> None:
     if args.set_io:
         io_pin: int = int(args.set_io[0])
         is_high: bool = args.set_io[1].upper() == "HIGH"
-        match get_device(device_index):
+        match get_device(device_index, processor_type):
             case Ok(device):
                 print("Setting IO pin", io_pin, "to", "high" if is_high else "low")
                 print(device.set_io(io_pin, is_high).unwrap_or("Failed to set IO pin"))
