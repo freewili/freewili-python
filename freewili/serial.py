@@ -10,7 +10,12 @@ import pathlib
 import re
 import sys
 import time
-from typing import Any, Callable, List, Optional, Self, Tuple
+from typing import Any, Callable, List, Optional, Tuple
+
+if sys.version_info >= (3, 11):
+    from typing import Self
+else:
+    from typing_extensions import Self
 
 import serial
 import serial.tools.list_ports
@@ -76,7 +81,7 @@ class FreeWiliSerial:
 
     def __init__(self, info: FreeWiliSerialInfo, stay_open: bool = False) -> None:
         self._info: FreeWiliSerialInfo = info
-        self._serial: serial.Serial = serial.Serial(None, timeout=1.0)
+        self._serial: serial.Serial = serial.Serial(None, timeout=1.0, exclusive=True)
         # Initialize to disable menus
         self._stay_open: bool = stay_open
 
@@ -181,7 +186,15 @@ class FreeWiliSerial:
         self._write_serial(cmd)
         self._serial.flush()
 
-    def _write_serial(self, data: bytes) -> Result[str, str]:
+        # Wait for menu to be enabled and receive some data
+        timeout_sec: float = 2.0
+        if enabled:
+            start = time.time()
+            while time.time() - start <= timeout_sec and self._serial.in_waiting <= 0:
+                time.sleep(0.001)
+            time.sleep(0.1)
+
+    def _write_serial(self, data: bytes, timeout_sec: float = 0.0) -> Result[str, str]:
         """Write data to the serial port."""
         # print(f"DEBUG: {repr(data)}")
         try:
@@ -189,8 +202,9 @@ class FreeWiliSerial:
             if length != len(data):
                 return Err(f"Only wrote {length} of {len(data)} bytes.")
             self._serial.flush()
+            time.sleep(timeout_sec)
         except serial.SerialException as e:
-            return Err(str(e))
+            return Err(f"Failed to write serial data: {str(e)}")
         return Ok(f"Wrote {length} bytes successfully.")
 
     @needs_open(False)
@@ -378,10 +392,10 @@ class FreeWiliSerial:
                         first_line_processed = True
                         continue
                     addresses = _process_line(line.decode().lstrip().rstrip())
-                    addr_un = addresses[0] # Address upper nibble
+                    addr_un = addresses[0]  # Address upper nibble
                     found_addresses.extend(
-                            [addr_un + addr_ln for addr_ln, found in enumerate(addresses[1:]) if found != 0]
-                        )
+                        [addr_un + addr_ln for addr_ln, found in enumerate(addresses[1:]) if found != 0]
+                    )
                 return Ok(tuple(found_addresses))
             case Err(e):
                 return Err(e)
@@ -511,15 +525,15 @@ class FreeWiliSerial:
         checksum = 0
         with source_file.open("rb") as f:
             while byte := f.read(1):
-                checksum += int.from_bytes(byte)
+                checksum += int.from_bytes(byte, "little")
                 if checksum & 0x8000:
                     checksum ^= 2054
                 checksum &= 0xFFFFFF
         # send the download command
-        self._serial.read_all()
-        match self._write_serial(f"x\nf\n{target_name} {fsize} {checksum}\n".encode("ascii")):
+        self._serial.reset_input_buffer()
+        self._serial.reset_output_buffer()
+        match self._write_serial(f"x\nf\n{target_name} {fsize} {checksum}\n".encode("ascii"), 0.1):
             case Ok(_):
-                time.sleep(0.25)  # self._wait_for_serial_data(1.0, 0.1)
                 # print(self._serial.read_all())
                 print(f"Downloading {source_file} ({fsize} bytes) as {target_name} on {self}")
                 with source_file.open("rb") as f:
@@ -529,6 +543,7 @@ class FreeWiliSerial:
                             return Err(f"Failed to write {byte.decode()} to {self}")
                         # print(self._serial.read_all())
                         # time.sleep(0.002)
+                time.sleep(1)
                 return Ok(f"Downloaded {source_file} ({fsize} bytes) as {target_name} to {self}")
             case Err(e):
                 return Err(e)
@@ -616,7 +631,7 @@ class FreeWiliSerial:
             Result[FreeWiliProcessorType, str]:
                 Returns Ok(FreeWiliProcessorType) if the command was sent successfully, Err(str) if not.
         """
-        self._wait_for_serial_data(1.0)
+        self._wait_for_serial_data(3.0)
         data = self._serial.read_all()
         # proc_type_regex = re.compile(r"(Main|Display) Processor")
         # match = proc_type_regex.search(data.decode())
