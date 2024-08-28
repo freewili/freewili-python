@@ -81,7 +81,7 @@ class FreeWiliSerial:
 
     def __init__(self, info: FreeWiliSerialInfo, stay_open: bool = False) -> None:
         self._info: FreeWiliSerialInfo = info
-        self._serial: serial.Serial = serial.Serial(None, timeout=1.0)
+        self._serial: serial.Serial = serial.Serial(None, timeout=1.0, exclusive=True)
         # Initialize to disable menus
         self._stay_open: bool = stay_open
 
@@ -197,6 +197,7 @@ class FreeWiliSerial:
     def _write_serial(self, data: bytes, timeout_sec: float = 0.0) -> Result[str, str]:
         """Write data to the serial port."""
         # print(f"DEBUG: {repr(data)}")
+        print("3")
         try:
             length = self._serial.write(data)
             if length != len(data):
@@ -204,7 +205,9 @@ class FreeWiliSerial:
             self._serial.flush()
             time.sleep(timeout_sec)
         except serial.SerialException as e:
-            return Err(str(e))
+            print("3.5")
+            return Err(f"Failed to write serial data: {str(e)}")
+        print("4")
         return Ok(f"Wrote {length} bytes successfully.")
 
     @needs_open(False)
@@ -543,6 +546,7 @@ class FreeWiliSerial:
                             return Err(f"Failed to write {byte.decode()} to {self}")
                         # print(self._serial.read_all())
                         # time.sleep(0.002)
+                time.sleep(1)
                 return Ok(f"Downloaded {source_file} ({fsize} bytes) as {target_name} to {self}")
             case Err(e):
                 return Err(e)
@@ -630,7 +634,7 @@ class FreeWiliSerial:
             Result[FreeWiliProcessorType, str]:
                 Returns Ok(FreeWiliProcessorType) if the command was sent successfully, Err(str) if not.
         """
-        self._wait_for_serial_data(1.0)
+        self._wait_for_serial_data(3.0)
         data = self._serial.read_all()
         # proc_type_regex = re.compile(r"(Main|Display) Processor")
         # match = proc_type_regex.search(data.decode())
