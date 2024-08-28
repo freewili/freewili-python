@@ -6,16 +6,15 @@ This module provides functionality to find and control FreeWili boards.
 import dataclasses
 import enum
 import functools
-import os
 import pathlib
 import re
 import sys
 import time
 from typing import Any, Callable, List, Optional, Tuple
 
-try:
+if sys.version_info >= (3, 11):
     from typing import Self
-except ImportError:
+else:
     from typing_extensions import Self
 
 import serial
@@ -187,7 +186,15 @@ class FreeWiliSerial:
         self._write_serial(cmd)
         self._serial.flush()
 
-    def _write_serial(self, data: bytes) -> Result[str, str]:
+        # Wait for menu to be enabled and receive some data
+        timeout_sec: float = 2.0
+        if enabled:
+            start = time.time()
+            while time.time() - start <= timeout_sec and self._serial.in_waiting <= 0:
+                time.sleep(0.001)
+            time.sleep(0.1)
+
+    def _write_serial(self, data: bytes, timeout_sec: float = 0.0) -> Result[str, str]:
         """Write data to the serial port."""
         # print(f"DEBUG: {repr(data)}")
         try:
@@ -195,6 +202,7 @@ class FreeWiliSerial:
             if length != len(data):
                 return Err(f"Only wrote {length} of {len(data)} bytes.")
             self._serial.flush()
+            time.sleep(timeout_sec)
         except serial.SerialException as e:
             return Err(str(e))
         return Ok(f"Wrote {length} bytes successfully.")
@@ -384,10 +392,10 @@ class FreeWiliSerial:
                         first_line_processed = True
                         continue
                     addresses = _process_line(line.decode().lstrip().rstrip())
-                    addr_un = addresses[0] # Address upper nibble
+                    addr_un = addresses[0]  # Address upper nibble
                     found_addresses.extend(
-                            [addr_un + addr_ln for addr_ln, found in enumerate(addresses[1:]) if found != 0]
-                        )
+                        [addr_un + addr_ln for addr_ln, found in enumerate(addresses[1:]) if found != 0]
+                    )
                 return Ok(tuple(found_addresses))
             case Err(e):
                 return Err(e)
@@ -508,10 +516,6 @@ class FreeWiliSerial:
             Result[str, str]:
                 Returns Ok(str) if the command was sent successfully, Err(str) if not.
         """
-        delay_ms_env = os.getenv("FWI_DELAY_MS")
-        if not delay_ms_env:
-            delay_ms_env = "50"
-        delay_ms: int = int(delay_ms_env, 10)
         if not isinstance(source_file, pathlib.Path):
             source_file = pathlib.Path(source_file)
         if not source_file.exists():
@@ -521,15 +525,15 @@ class FreeWiliSerial:
         checksum = 0
         with source_file.open("rb") as f:
             while byte := f.read(1):
-                checksum += int.from_bytes(byte)
+                checksum += int.from_bytes(byte, "little")
                 if checksum & 0x8000:
                     checksum ^= 2054
                 checksum &= 0xFFFFFF
         # send the download command
-        self._serial.read_all()
-        match self._write_serial(f"x\nf\n{target_name} {fsize} {checksum}\n".encode("ascii")):
+        self._serial.reset_input_buffer()
+        self._serial.reset_output_buffer()
+        match self._write_serial(f"x\nf\n{target_name} {fsize} {checksum}\n".encode("ascii"), 0.1):
             case Ok(_):
-                time.sleep(delay_ms / 1000.0)  # self._wait_for_serial_data(1.0, 0.1)
                 # print(self._serial.read_all())
                 print(f"Downloading {source_file} ({fsize} bytes) as {target_name} on {self}")
                 with source_file.open("rb") as f:
