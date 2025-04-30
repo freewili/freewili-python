@@ -10,8 +10,7 @@ dependencies = [
     "typing-extensions == 4.12.2",
     "result == 0.17.0",
     "numpy>=2.2.4",
-    "libusb1>=3.3.1",
-    "pyfwfinder>=0.0.1",
+    "pyfwfinder==0.0.2",
 ]
 
 name = "freewili"

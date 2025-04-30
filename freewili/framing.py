@@ -35,6 +35,25 @@ class ResponseFrame:
     success: int
     _raw: str
 
+    @staticmethod
+    def is_frame(frame: bytes | str) -> bool:
+        """Identify if the frame value is something we can parse.
+
+        Parameters:
+        ----------
+            frame : bytes | str:
+                response frame string to decode.
+
+        Returns:
+        -------
+            bool:
+                True if is a frame, False otherwise.
+        """
+        if isinstance(frame, bytes):
+            frame = frame.decode("ascii")
+        assert isinstance(frame, str)
+        return frame.startswith("[") and frame.endswith("]")
+
     @classmethod
     def from_raw(cls, frame: str, strict: bool = True) -> Result[Self, str]:
         """Take a response frame string and create a ResponseFrame.
@@ -53,7 +72,7 @@ class ResponseFrame:
         """
         # Verify we are a frame, we should be enclosed with []
         raw = frame
-        if not frame.startswith("[") and not frame.endswith("]"):
+        if not cls.is_frame(frame):
             return Err("Invalid data, expected frame to be enclosed []")
         # Strip the brackets
         frame = frame.lstrip("[").rstrip().rstrip("]")
