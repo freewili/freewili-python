@@ -8,14 +8,14 @@ import enum
 import functools
 import pathlib
 import platform
-from queue import Empty
 import re
 import sys
 import time
+from queue import Empty
 from typing import Any, Callable, Optional
 
 from freewili.framing import ResponseFrame
-from freewili.serialreader import SerialReader
+from freewili.serialport import SerialPort
 
 if sys.version_info >= (3, 11):
     from typing import Self
@@ -128,8 +128,7 @@ class FreeWiliSerial:
     DEFAULT_SEGMENT_SIZE: int = 8
 
     def __init__(self, port: str, stay_open: bool = False) -> None:
-        self.reader = SerialReader(port)
-        self.reader.start()
+        self.serial_port = SerialPort(port)
         # self.port = port
         # self._serial: serial.Serial = serial.Serial(None, timeout=1.0, exclusive=True)
         # # Initialize to disable menus
@@ -139,7 +138,7 @@ class FreeWiliSerial:
         return f"<{str(self)}>"
 
     def __str__(self) -> str:
-        return f"{self.__class__.__name__} {self.reader.port}"
+        return f"{self.__class__.__name__} {self.serial_port.port}"
 
     @property
     def stay_open(self) -> bool:
@@ -154,11 +153,69 @@ class FreeWiliSerial:
     def stay_open(self, value: bool) -> None:
         self._stay_open = value
 
-    def close(self, restore_menu: bool = True) -> None:
-        """Close the serial port. Use in conjunction with stay_open."""
-        if restore_menu:
-            self.reader.send(CMD_ENABLE_MENU)
-        self.reader.close()
+    def open(self, block: bool = True, timeout_sec: float = 6.0) -> Result[None, str]:
+        """Open the serial port.
+
+        See also: is_open()
+
+        Parameters:
+        ----------
+            block: bool:
+                If True, block until the serial port is opened.
+            timeout_sec: float:
+                number of seconds to wait when blocking.
+
+        Returns:
+        -------
+            None
+
+        Raises:
+        ------
+            TimeoutError:
+                When blocking is True and time elapsed is greater than timeout_sec
+        """
+        return self.serial_port.open(block, timeout_sec)
+
+    def close(self, restore_menu: bool = True, block: bool = True, timeout_sec: float = 6.0) -> None:
+        """Close the serial port.
+
+        See also: is_open()
+
+        Parameters:
+        ----------
+            restore_menu: bool:
+                Re-enable the menu before close if True.
+            block: bool:
+                If True, block until the serial port is closed.
+            timeout_sec: float:
+                number of seconds to wait when blocking.
+
+        Returns:
+        -------
+            None
+
+        Raises:
+        ------
+            TimeoutError:
+                When blocking is True and time elapsed is greater than timeout_sec
+        """
+        if self.serial_port.is_open() and restore_menu:
+            self.serial_port.send(CMD_ENABLE_MENU)
+        self.serial_port.close()
+
+    def is_open(self) -> bool:
+        """Return if the serial port is open.
+
+        Parameters:
+        ----------
+            None
+
+        Returns:
+        -------
+            bool:
+                True if open, False if closed.
+        """
+        return self.serial_port.is_open()
 
     @staticmethod
     def needs_open(enable_menu: bool = False, restore_menu: bool = True) -> Callable:
@@ -190,13 +247,15 @@ class FreeWiliSerial:
 
             @functools.wraps(func)
             def wrapper(self: Self, *args: Optional[Any], **kwargs: Optional[Any]) -> Any | None:
+                was_open = self.is_open()
+                self.open().expect("Failed to open")
                 self._set_menu_enabled(enable_menu)
                 try:
                     result = func(self, *args, **kwargs)
                     # self._set_menu_enabled(True)
                     return result
                 finally:
-                    if not self.stay_open:
+                    if not self.stay_open and not was_open:
                         self.close(restore_menu)
                     result = None
 
@@ -204,15 +263,12 @@ class FreeWiliSerial:
 
         return decorator
 
-    # def __enter__(self) -> Self:
-    #     if not self._serial.is_open:
-    #         self._serial.port = self.port
-    #         self._serial.open()
-    #     return self
+    def __enter__(self) -> Self:
+        self.open()
+        return self
 
-    # def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
-    #     if self._serial.is_open:
-    #         self._serial.close()
+    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
+        self.close()
 
     def _set_menu_enabled(self, enabled: bool) -> None:
         """Enable or disable menus.
@@ -227,14 +283,18 @@ class FreeWiliSerial:
             None
         """
         # self.reader.clear()
-        self.reader.send(CMD_ENABLE_MENU if enabled else CMD_DISABLE_MENU)
+        self.serial_port.send(CMD_ENABLE_MENU if enabled else CMD_DISABLE_MENU)
 
         # Wait for menu to be enabled and receive some data
         timeout_sec: float = 2.0
         if enabled:
             start = time.time()
-            while time.time() - start <= timeout_sec and self.reader.data_queue.empty():
+            current = time.time()
+            while current - start < timeout_sec and self.serial_port.data_queue.empty():
+                current = time.time()
                 time.sleep(0.001)
+            if current - start >= timeout_sec:
+                raise TimeoutError(f"Failed to enable menus in {timeout_sec} seconds")
             time.sleep(0.1)
 
     @needs_open(False)
@@ -280,7 +340,7 @@ class FreeWiliSerial:
             case _:
                 return Err(f"{menu_cmd.name} is not supported.")
 
-        self.reader.send(cmd)
+        self.serial_port.send(cmd)
         resp = self._wait_for_response_frame()
         return resp
 
@@ -308,7 +368,7 @@ class FreeWiliSerial:
         # s) Set Board LED [25 100 100 100]
         cmd = f"k\ns\n{io} {red} {green} {blue}"
 
-        self.reader.send(cmd)
+        self.serial_port.send(cmd)
         resp = self._wait_for_response_frame()
         return resp
 
@@ -325,8 +385,6 @@ class FreeWiliSerial:
             Result[tuple[int], str]:
                 Ok(tuple[int]) if the command was sent successfully, Err(str) if not.
         """
-        self._serial.reset_input_buffer()
-        self._serial.reset_output_buffer()
         cmd = f"o\n{IOMenuCommand.Get.menu_character}\n"
         match self._write_serial(cmd.encode("ascii"), 0.1):
             case Ok(_):
@@ -388,8 +446,8 @@ class FreeWiliSerial:
                 Ok(ResponseFrame) if the response frame was found, Err(str) if not.
         """
         try:
-            resp = self.reader.rf_queue.get(True, timeout_sec)
-            self.reader.rf_queue.task_done()
+            # return ResponseFrame.from_raw("[k\\s 0DE8F442FBC41063 14 Ok 1]")
+            resp = self.serial_port.rf_queue.get(True, timeout_sec)
             return resp
         except Empty:
             return Err(f"Failed to read response frame in {timeout_sec} seconds")
@@ -645,7 +703,7 @@ class FreeWiliSerial:
             Result[str, str]:
                 Ok(str) if the command was sent successfully, Err(str) if not.
         """
-        print(f"Running script '{file_name}' on {self}...")
+        # print(f"Running script '{file_name}' on {self}...")
         match self._write_serial(f"w\n{file_name}\n".encode("ascii")):
             case Ok(_):
                 read_bytes = []
@@ -713,7 +771,7 @@ class FreeWiliSerial:
         match self._write_serial(f"x\nf\n{target_name} {fsize} {checksum}\n".encode("ascii"), 0.1):
             case Ok(_):
                 # print(self._serial.read_all())
-                print(f"Downloading {source_file} ({fsize} bytes) as {target_name} on {self}")
+                # print(f"Downloading {source_file} ({fsize} bytes) as {target_name} on {self}")
                 with source_file.open("rb") as f:
                     while byte := f.read(1):
                         # print(byte)
@@ -758,28 +816,18 @@ class FreeWiliSerial:
             Result[None, str]:
                 Returns Ok(None) if the command was sent successfully, Err(str) if not.
         """
-        original_baudrate = self._serial.baudrate
+        self.serial_port.close()
         try:
-            if self._serial.is_open:
-                self._serial.close()
-            else:
-                self._serial.port = self.port
-            self._serial.baudrate = 1200
-            try:
-                self._serial.open()
-            except serial.serialutil.SerialException as ex:
-                if platform.system() == "Windows":
-                    # SerialException("Cannot configure port, something went wrong.
-                    # Original message:
-                    # PermissionError(13, 'A device attached to the system is not functioning.', None, 31)")
-                    return Ok(None)
-                raise ex from ex
-            self._serial.close()
-            return Ok(None)
-        except Exception as ex:
+            serial_port = serial.Serial(self.serial_port.port, baudrate=1200, exclusive=True)
+            serial_port.close()
+        except serial.serialutil.SerialException as ex:
+            if platform.system() == "Windows":
+                # SerialException("Cannot configure port, something went wrong.
+                # Original message:
+                # PermissionError(13, 'A device attached to the system is not functioning.', None, 31)")
+                return Ok(None)
             return Err(f"Failed to reset to UF2 bootloader {str(ex)}")
-        finally:
-            self._serial.baudrate = original_baudrate
+        return Ok(None)
 
     def _wait_for_serial_data(self, timeout_sec: float, delay_sec: float = 0.1) -> None:
         """Wait for data to be available on the serial port.
