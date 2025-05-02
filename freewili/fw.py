@@ -106,13 +106,13 @@ class FreeWili:
             for usb_device in self.usb_devices:
                 if (
                     processor_type == FreeWiliProcessorType.Main
-                    and usb_device.kind == fwf.USBDeviceType.MassStorage
+                    # and usb_device.kind == fwf.USBDeviceType.MassStorage
                     and usb_device.location == 1
                 ):
                     return usb_device
                 if (
                     processor_type == FreeWiliProcessorType.Display
-                    and usb_device.kind == fwf.USBDeviceType.MassStorage
+                    # and usb_device.kind == fwf.USBDeviceType.MassStorage
                     and usb_device.location == 2
                 ):
                     return usb_device
@@ -226,6 +226,31 @@ class FreeWili:
     def stay_open(self, value: bool) -> None:
         self._stay_open = value
 
+    def open(self, block: bool = True, timeout_sec: float = 6.0) -> Result[None, str]:
+        """Close the serial port. Use in conjunction with stay_open.
+
+        Arguments:
+        ----------
+            block: bool:
+                If True, block until the serial port is opened.
+            timeout_sec: float:
+                number of seconds to wait when blocking.
+
+        Returns:
+        -------
+            Result[None, str]:
+                Ok(None) if successful, Err(str) otherwise.
+        """
+        if self.main_serial:
+            result = self.main_serial.open(block, timeout_sec)
+            if result.is_err():
+                return Err(result.err())
+        if self.display_serial:
+            result = self.display_serial.open(block, timeout_sec)
+            if result.is_err():
+                return Err(result.err())
+        return Ok(None)
+
     def close(self, restore_menu: bool = True) -> None:
         """Close the serial port. Use in conjunction with stay_open.
 
@@ -324,6 +349,33 @@ class FreeWili:
         match self.get_serial_from(processor):
             case Ok(serial):
                 return serial.send_file(source_file, target_name)
+            case Err(msg):
+                return Err(msg)
+            case _:
+                raise RuntimeError("Missing case statement")
+
+    def get_file(
+        self, source_file: str, destination_path: pathlib.Path, processor: None | FreeWiliProcessorType
+    ) -> Result[str, str]:
+        """Send a file to the FreeWili.
+
+        Arguments:
+        ----------
+            source_file: pathlib.Path
+                Path to the file to be sent.
+            destination_path: pathlib.Path
+                file path to save on the PC
+            processor: None | FreeWiliProcessorType
+                Processor to upload the file to. If None, will be determined automatically based on the filename.
+
+        Returns:
+        -------
+            Result[str, str]:
+                Returns Ok(str) if the command was sent successfully, Err(str) if not.
+        """
+        match self.get_serial_from(processor):
+            case Ok(serial):
+                return serial.get_file(source_file, destination_path)
             case Err(msg):
                 return Err(msg)
             case _:

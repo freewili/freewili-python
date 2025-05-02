@@ -15,6 +15,7 @@ class SerialPort(threading.Thread):
     """Read/Write data to a serial port."""
 
     def __init__(self, port: str, baudrate: int = 115200):
+        self._debug_enabled = True
         super().__init__(daemon=True)
         self._port = port
         self._baudrate = baudrate
@@ -181,7 +182,7 @@ class SerialPort(threading.Thread):
 
     def run(self) -> None:
         """Thread handler function. Call Self.start() to initialize."""
-        print(f"Started {self._port}...\n")
+        self._debug_print(f"Started {self._port}...\n")
         serial_port: None | Serial = None
         while self._running.is_set():
             if self._in_error.is_set():
@@ -191,7 +192,7 @@ class SerialPort(threading.Thread):
                 # Configure the serial port
                 if self._connect.is_set() and not serial_port:
                     try:
-                        serial_port = Serial(self._port, baudrate=9600, timeout=0.0, exclusive=True)
+                        serial_port = Serial(self._port, baudrate=9600, timeout=0.1, exclusive=True)
                         self._is_connected = True
                     except SerialException as ex:
                         print(ex)
@@ -207,22 +208,22 @@ class SerialPort(threading.Thread):
                     continue
                 # Send data
                 try:
-                    send_data = self.send_queue.get(block=True, timeout=1.0)
-                    print("sending: ", send_data, self._port)
+                    send_data = self.send_queue.get_nowait()
+                    self._debug_print("sending: ", send_data, self._port)
                     write_len = serial_port.write(send_data)
-                    time.sleep(0.25)
                     serial_port.flush()
+                    # time.sleep(0.001)
                     assert len(send_data) == write_len
                 except queue.Empty:
-                    pass
+                    time.sleep(0.001)
                 # Read data
-                print("Reading...")
+                self._debug_print("Reading...")
                 data = serial_port.readline()
-                print("Done Reading...")
-                if not data:
-                    continue
+                # self._debug_print("Done Reading...")
+                # if not data:
+                #     continue
                 data = data.decode("utf-8").strip()
-                print("RX: ", repr(data), len(data))
+                self._debug_print("RX: ", repr(data), len(data))
                 self._handle_data(data)
             except Exception as ex:
                 self._error_msg = str(ex)
@@ -232,7 +233,11 @@ class SerialPort(threading.Thread):
                     serial_port = None
         if serial_port:
             serial_port.close()
-        print("Done.")
+        self._debug_print("Done.")
+
+    def _debug_print(self, *args, **kwargs):
+        if self._debug_enabled:
+            print(*args, **kwargs)
 
     def _handle_data(self, data: str) -> None:
         assert isinstance(data, str)
@@ -262,7 +267,7 @@ class SerialPort(threading.Thread):
             data = data.encode("ascii")
         if append_newline:
             data += newline_chars.encode("ascii")
-        print("send:", data)
+        self._debug_print("send:", data)
         self.send_queue.put(data)
 
     def clear(self) -> None:
