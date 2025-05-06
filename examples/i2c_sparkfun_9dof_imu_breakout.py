@@ -203,9 +203,9 @@ try:
         try:
             temp_c, ts = get_mmc5983ma_temperature(device)
             temp_f = temp_c * 1.8 + 32
-            print(f"[{ts-first_ts}] Temperature: {temp_c:.2f}C ({temp_f:.2f}F)")
+            print(f"[{ts - first_ts}] Temperature: {temp_c:.2f}C ({temp_f:.2f}F)")
             magnetic_data, ts = get_mmc5983ma_magnetic_sensor(device)
-            print(f"[{ts-first_ts}] Magnetic Field: {magnetic_data}")
+            print(f"[{ts - first_ts}] Magnetic Field: {magnetic_data}")
         except KeyboardInterrupt:
             break
 finally:

@@ -11,9 +11,9 @@ import platform
 import re
 import sys
 import time
+import zlib
 from queue import Empty
 from typing import Any, Callable, Optional
-import zlib
 
 from freewili.framing import ResponseFrame
 from freewili.serialport import SerialPort
@@ -128,8 +128,9 @@ class FreeWiliSerial:
     # The default number of bytes to write/read at a time
     DEFAULT_SEGMENT_SIZE: int = 8
 
-    def __init__(self, port: str, stay_open: bool = False) -> None:
-        self.serial_port = SerialPort(port)
+    def __init__(self, port: str, stay_open: bool = False, name: str = "") -> None:
+        self.serial_port = SerialPort(port, 1000000, name)
+        self.last_menu_option: None | bool = None
         # self.port = port
         # self._serial: serial.Serial = serial.Serial(None, timeout=1.0, exclusive=True)
         # # Initialize to disable menus
@@ -247,9 +248,6 @@ class FreeWiliSerial:
             def wrapper(self: Self, *args: Optional[Any], **kwargs: Optional[Any]) -> Any | None:
                 was_open = self.is_open()
                 self.open().expect("Failed to open")
-                if not hasattr(self, "last_menu_option"):
-                    self.last_menu_option = enable_menu
-                    self._set_menu_enabled(enable_menu)
                 if self.last_menu_option != enable_menu:
                     self._set_menu_enabled(enable_menu)
                     self.last_menu_option = enable_menu
@@ -287,6 +285,8 @@ class FreeWiliSerial:
         """
         # self.reader.clear()
         self.serial_port.send(CMD_ENABLE_MENU if enabled else CMD_DISABLE_MENU)
+        # if enabled:
+        #     self.serial_port.send("", True, "\r\n")
 
         # Wait for menu to be enabled and receive some data
         timeout_sec: float = 2.0
@@ -423,17 +423,18 @@ class FreeWiliSerial:
             Result[bytes, str]:
                 Ok(bytes) if the command was sent successfully, Err(str) if not.
         """
-        hex_reg = re.compile(r"[A-Fa-f0-9]{1,2}")
-        read_bytes = bytearray()
-        for i in range(0, len(data), data_segment_size):
-            str_hex_data = " ".join(f"{i:02X}" for i in data[i : i + data_segment_size])
-            self._serial.write(f"{command}{str_hex_data}\n".encode("ascii"))
-            read_data = self._serial.readline().strip()
-            # if not read_data:
-            #     read_data = self._serial.readline().strip()
-            for value in hex_reg.findall(read_data.decode()):
-                read_bytes += int(value, 16).to_bytes(1, sys.byteorder)
-        return Ok(bytes(read_bytes))
+        raise NotImplementedError("TODO")
+        # hex_reg = re.compile(r"[A-Fa-f0-9]{1,2}")
+        # read_bytes = bytearray()
+        # for i in range(0, len(data), data_segment_size):
+        #     str_hex_data = " ".join(f"{i:02X}" for i in data[i : i + data_segment_size])
+        #     self._serial.write(f"{command}{str_hex_data}\n".encode("ascii"))
+        #     read_data = self._serial.readline().strip()
+        #     # if not read_data:
+        #     #     read_data = self._serial.readline().strip()
+        #     for value in hex_reg.findall(read_data.decode()):
+        #         read_bytes += int(value, 16).to_bytes(1, sys.byteorder)
+        # return Ok(bytes(read_bytes))
 
     def _wait_for_response_frame(self, timeout_sec: float = 6.0) -> Result[ResponseFrame, str]:
         """Wait for a response frame after sending a command.
@@ -747,13 +748,13 @@ class FreeWiliSerial:
         # send the file
         self._set_menu_enabled(False)
         cmd = f"x\nf\n{target_name} {fsize} {checksum}"
-        self.serial_port.send(cmd)
+        self.serial_port.send(cmd, delay_sec=0.3)
         resp = self._wait_for_response_frame()
         if resp.is_err():
-            return Err(resp.err_value())
+            return Err(resp.err())
         with source_file.open("rb") as f:
             while chunk := f.read(64):
-                self.serial_port.send(chunk, False)
+                self.serial_port.send(chunk, False, delay_sec=0.3)
         resp = self._wait_for_response_frame()
         return resp
 
@@ -773,26 +774,26 @@ class FreeWiliSerial:
             Result[bytearray, str]:
                 Returns an array of bytes if the command was sent successfully, Err(str) if not.
         """
-        raise NotImplementedError
-        self._set_menu_enabled(False)
-        asdf = self.serial_port.data_queue.get()
-        # clear the data buffer
-        while True:
-            try:
-                data = self.serial_port.data_queue.get_nowait()
-                self.serial_port.data_queue.task_done()
-            except Empty:
-                break
-        cmd = f"x\nu\n{source_file}"
-        self.serial_port.send(cmd)
-        resp = self._wait_for_response_frame()
-        if resp.is_err():
-            return Err(resp.err_value())
-        time.sleep(0.5)
-        data = self.serial_port.data_queue.get(True, 1.0)
-        resp = self._wait_for_response_frame()
-        print(resp)
-        return Ok(data)
+        raise NotImplementedError("TODO")
+        # self._set_menu_enabled(False)
+        # asdf = self.serial_port.data_queue.get()
+        # # clear the data buffer
+        # while True:
+        #     try:
+        #         data = self.serial_port.data_queue.get_nowait()
+        #         self.serial_port.data_queue.task_done()
+        #     except Empty:
+        #         break
+        # cmd = f"x\nu\n{source_file}"
+        # self.serial_port.send(cmd)
+        # resp = self._wait_for_response_frame()
+        # if resp.is_err():
+        #     return Err(resp.err_value())
+        # time.sleep(0.5)
+        # data = self.serial_port.data_queue.get(True, 1.0)
+        # resp = self._wait_for_response_frame()
+        # print(resp)
+        # return Ok(data)
 
     def reset_to_uf2_bootloader(self) -> Result[None, str]:
         """Reset the FreeWili to the uf2 bootloader.
@@ -834,14 +835,15 @@ class FreeWiliSerial:
             TimeoutError
                 If the timeout is reached before data is available.
         """
-        start = time.time()
-        while self._serial.in_waiting == 0:
-            time.sleep(0.001)
-            if time.time() - start > timeout_sec:
-                raise TimeoutError(f"Timed out waiting for data on {self}")
-        time.sleep(delay_sec)
+        raise NotImplementedError("TODO")
+        # start = time.time()
+        # while self._serial.in_waiting == 0:
+        #     time.sleep(0.001)
+        #     if time.time() - start > timeout_sec:
+        #         raise TimeoutError(f"Timed out waiting for data on {self}")
+        # time.sleep(delay_sec)
 
-    @needs_open(True)
+    @needs_open(False)
     def get_app_info(self) -> Result[FreeWiliAppInfo, str]:
         """Detect the processor type of the FreeWili.
 
@@ -850,7 +852,24 @@ class FreeWiliSerial:
             Result[FreeWiliProcessorType, str]:
                 Returns Ok(FreeWiliProcessorType) if the command was sent successfully, Err(str) if not.
         """
-        self._set_menu_enabled(True)
+        self.serial_port.send("?")
+        resp = self._wait_for_response_frame()
+        if resp.is_err():
+            return Err(resp.err())
+        proc_type_regex = re.compile(r"(?:Main|Display)|(?:App version)|(?:\d+)")
+        results = proc_type_regex.findall(resp.unwrap().response)
+        if len(results) != 2:
+            return Ok(FreeWiliAppInfo(FreeWiliProcessorType.Unknown, 0))
+        # New firmware >= 48
+        processor = results[0]
+        version = results[1]
+        if "Main" in processor:
+            return Ok(FreeWiliAppInfo(FreeWiliProcessorType.Main, int(version)))
+        elif "Display" in processor:
+            return Ok(FreeWiliAppInfo(FreeWiliProcessorType.Display, int(version)))
+        else:
+            return Ok(FreeWiliAppInfo(FreeWiliProcessorType.Unknown, int(version)))
+
         self.serial_port.send("", True, "\r\n\r\n")
         time.sleep(3)
         all_data = []

@@ -4,19 +4,22 @@ import queue
 import threading
 import time
 from queue import Queue
+from typing import Any
 
 from result import Err, Ok, Result
 from serial import Serial, SerialException
 
 from freewili.framing import ResponseFrame
+from freewili.util.fifo import SafeIOFIFOBuffer
 
 
 class SerialPort(threading.Thread):
     """Read/Write data to a serial port."""
 
-    def __init__(self, port: str, baudrate: int = 115200):
-        self._debug_enabled = True
-        super().__init__(daemon=True)
+    def __init__(self, port: str, baudrate: int = 1000000, name: str = ""):
+        self._debug_enabled = False
+        self._name = name
+        super().__init__(daemon=True, name=f"Thread-SerialPort-{port}-{name}")
         self._port = port
         self._baudrate = baudrate
         self._running = threading.Event()
@@ -184,6 +187,9 @@ class SerialPort(threading.Thread):
         """Thread handler function. Call Self.start() to initialize."""
         self._debug_print(f"Started {self._port}...\n")
         serial_port: None | Serial = None
+        # read_buffer_data: bytearray = bytearray()
+        # read_buffer = io.BytesIO()
+        read_buffer = SafeIOFIFOBuffer(blocking=False)
         while self._running.is_set():
             if self._in_error.is_set():
                 time.sleep(0.001)
@@ -192,7 +198,7 @@ class SerialPort(threading.Thread):
                 # Configure the serial port
                 if self._connect.is_set() and not serial_port:
                     try:
-                        serial_port = Serial(self._port, baudrate=9600, timeout=0.1, exclusive=True)
+                        serial_port = Serial(self._port, baudrate=1000000, timeout=0.001, exclusive=True)
                         self._is_connected = True
                     except SerialException as ex:
                         print(ex)
@@ -208,25 +214,27 @@ class SerialPort(threading.Thread):
                     continue
                 # Send data
                 try:
-                    send_data = self.send_queue.get_nowait()
+                    send_data, delay_sec = self.send_queue.get_nowait()
                     self._debug_print("sending: ", send_data, self._port)
                     write_len = serial_port.write(send_data)
-                    serial_port.flush()
-                    # time.sleep(0.001)
-                    assert len(send_data) == write_len
+                    time.sleep(delay_sec)
+                    self.send_queue.task_done()
+                    if len(send_data) != write_len:
+                        self._debug_print("asdf")
+                    assert len(send_data) == write_len, f"{len(send_data)} != {write_len}"
                 except queue.Empty:
-                    time.sleep(0.001)
+                    pass
                 # Read data
-                self._debug_print("Reading...")
-                data = serial_port.readline()
-                # self._debug_print("Done Reading...")
-                # if not data:
-                #     continue
-                data = data.decode("utf-8").strip()
-                self._debug_print("RX: ", repr(data), len(data))
-                self._handle_data(data)
+                # self._debug_print("Reading...")
+                data = serial_port.read(1024)
+                if data != b"":
+                    read_buffer.write(data)
+                    self._debug_print("RX: ", repr(data), len(data))
+                # self._debug_print("handle data...")
+                self._handle_data(read_buffer)
             except Exception as ex:
                 self._error_msg = str(ex)
+                self._debug_print(f"Exception: {self._error_msg}")
                 self._in_error.set()
                 if serial_port and serial_port.is_open:
                     serial_port.close()
@@ -235,18 +243,22 @@ class SerialPort(threading.Thread):
             serial_port.close()
         self._debug_print("Done.")
 
-    def _debug_print(self, *args, **kwargs):
+    def _debug_print(self, *args: Any, **kwargs: Any) -> None:
         if self._debug_enabled:
             print(*args, **kwargs)
 
-    def _handle_data(self, data: str) -> None:
-        assert isinstance(data, str)
-        if ResponseFrame.is_frame(data):
-            self.rf_queue.put(ResponseFrame.from_raw(data))
-        else:
+    def _handle_data(self, data_buffer: SafeIOFIFOBuffer) -> None:
+        assert isinstance(data_buffer, SafeIOFIFOBuffer)
+        while frame := data_buffer.pop_first_match(rb"\[.*.\d\].*\n"):
+            self._debug_print(f"RX Frame: {frame!r}")
+            self.rf_queue.put(ResponseFrame.from_raw(frame))
+        while data := data_buffer.pop_first_match(rb".*\n"):
+            self._debug_print(f"RX Data: {data!r}")
             self.data_queue.put(data)
 
-    def send(self, data: bytes | str, append_newline: bool = True, newline_chars: str = "\n") -> None:
+    def send(
+        self, data: bytes | str, append_newline: bool = True, newline_chars: str = "\n", delay_sec: float = 0.001
+    ) -> None:
         r"""Send data to the serial port.
 
         Parameters:
@@ -257,6 +269,8 @@ class SerialPort(threading.Thread):
                 Appends "\r\n" to the data if True.
             newline_chars : str:
                 Appends to data if append_newline is True.
+            delay_sec : float:
+                Number of seconds to wait after sending.
 
         Returns:
         -------
@@ -268,7 +282,7 @@ class SerialPort(threading.Thread):
         if append_newline:
             data += newline_chars.encode("ascii")
         self._debug_print("send:", data)
-        self.send_queue.put(data)
+        self.send_queue.put((data, delay_sec))
 
     def clear(self) -> None:
         """Clear all the data in the queues."""

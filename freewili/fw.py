@@ -162,7 +162,7 @@ class FreeWili:
                 FreeWiliSerial on success, None otherwise.
         """
         if not self._main_serial and self.main and self.main.port:
-            self._main_serial = FreeWiliSerial(self.main.port, self._stay_open)
+            self._main_serial = FreeWiliSerial(self.main.port, self._stay_open, "Main: " + str(self))
         if self._main_serial:
             self._main_serial.stay_open = self._stay_open
         return self._main_serial
@@ -181,7 +181,7 @@ class FreeWili:
                 FreeWiliSerial on success, None otherwise.
         """
         if not self._display_serial and self.display and self.display.port:
-            self._display_serial = FreeWiliSerial(self.display.port, self._stay_open)
+            self._display_serial = FreeWiliSerial(self.display.port, self._stay_open, "Display: " + str(self))
         if self._display_serial:
             self._display_serial.stay_open = self._stay_open
         return self._display_serial
@@ -206,7 +206,7 @@ class FreeWili:
                 else:
                     return Err("Main serial isn't valid")
             case FreeWiliProcessorType.Display:
-                if self.main_serial:
+                if self.display_serial:
                     return Ok(self.display_serial)
                 else:
                     return Err("Display serial isn't valid")
@@ -355,7 +355,7 @@ class FreeWili:
                 raise RuntimeError("Missing case statement")
 
     def get_file(
-        self, source_file: str, destination_path: pathlib.Path, processor: None | FreeWiliProcessorType
+        self, source_file: str, destination_path: pathlib.Path, processor: FreeWiliProcessorType
     ) -> Result[str, str]:
         """Send a file to the FreeWili.
 
