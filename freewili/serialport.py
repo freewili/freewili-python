@@ -190,48 +190,76 @@ class SerialPort(threading.Thread):
         # read_buffer_data: bytearray = bytearray()
         # read_buffer = io.BytesIO()
         read_buffer = SafeIOFIFOBuffer(blocking=False)
+        start_time = time.time()
         while self._running.is_set():
             if self._in_error.is_set():
                 time.sleep(0.001)
                 continue
             try:
                 # Configure the serial port
-                if self._connect.is_set() and not serial_port:
-                    try:
-                        serial_port = Serial(self._port, baudrate=1000000, timeout=0.001, exclusive=True)
-                        self._is_connected = True
-                    except SerialException as ex:
-                        print(ex)
-                        self._error_msg = str(ex)
-                        self._in_error.set()
-                        continue
+                if self._connect.is_set():
+                    # We are allowed to connect
+                    if not serial_port:
+                        try:
+                            self._debug_print(f"[{time.time() - start_time:.3f}] Opening {self._port}...\n")
+                            serial_port = Serial(
+                                self._port,
+                                baudrate=1000000,
+                                timeout=0.001,
+                                exclusive=True,
+                                rtscts=False,
+                                xonxoff=False,
+                                dsrdtr=False,
+                            )
+                            # This is absolutely needed, for some reason writing data too fast after open
+                            # will corrupt things and the read buffer does strange things.
+                            # 0.1 was successful 50% of the time in my testing and 0.2 was 100% successful.
+                            # 0.5 should allow for other slower systems if its a timing issue on the OS kernel level?
+                            time.sleep(0.5)
+                            self._is_connected = True
+                        except SerialException as ex:
+                            print(ex)
+                            self._error_msg = str(ex)
+                            self._in_error.set()
+                            continue
                 else:
-                    if serial_port:
+                    # We are allowed to disconnect
+                    if serial_port and self.send_queue.empty():
+                        self._debug_print(f"[{time.time() - start_time:.3f}] Closing {self._port}...\n")
                         serial_port.close()
                         serial_port = None
                         self._is_connected = False
-                    time.sleep(0.001)
-                    continue
+                        continue
+                    elif serial_port and not self.send_queue.empty():
+                        self._debug_print(
+                            f"[{time.time() - start_time:.3f}] Send queue not empty yet, waiting to close port...\n"
+                        )
+                    else:
+                        # serial_port isn't valid here, tight loop back to the beginning.
+                        time.sleep(0.001)
+                        continue
                 # Send data
                 try:
                     send_data, delay_sec = self.send_queue.get_nowait()
-                    self._debug_print("sending: ", send_data, self._port)
+                    self._debug_print(f"[{time.time() - start_time:.3f}] sending: ", send_data, self._port)
                     write_len = serial_port.write(send_data)
+                    self._debug_print(f"[{time.time() - start_time:.3f}]: Delaying for {delay_sec:.3f} seconds...")
                     time.sleep(delay_sec)
                     self.send_queue.task_done()
                     if len(send_data) != write_len:
-                        self._debug_print("asdf")
+                        self._debug_print("[{time.time()-start_time:.3f}] ERROR: send_data != write_len")
                     assert len(send_data) == write_len, f"{len(send_data)} != {write_len}"
                 except queue.Empty:
                     pass
                 # Read data
-                # self._debug_print("Reading...")
-                data = serial_port.read(1024)
-                if data != b"":
-                    read_buffer.write(data)
-                    self._debug_print("RX: ", repr(data), len(data))
-                # self._debug_print("handle data...")
-                self._handle_data(read_buffer)
+                if serial_port.in_waiting > 0:
+                    self._debug_print(f"[{time.time() - start_time:.3f}] Reading {serial_port.in_waiting}...")
+                    data = serial_port.read(1024)
+                    if data != b"":
+                        read_buffer.write(data)
+                        self._debug_print(f"[{time.time() - start_time:.3f}] RX: ", repr(data), len(data))
+                    # self._debug_print("handle data...")
+                    self._handle_data(read_buffer)
             except Exception as ex:
                 self._error_msg = str(ex)
                 self._debug_print(f"Exception: {self._error_msg}")
@@ -281,7 +309,7 @@ class SerialPort(threading.Thread):
             data = data.encode("ascii")
         if append_newline:
             data += newline_chars.encode("ascii")
-        self._debug_print("send:", data)
+        self._debug_print("send:", data, delay_sec)
         self.send_queue.put((data, delay_sec))
 
     def clear(self) -> None:

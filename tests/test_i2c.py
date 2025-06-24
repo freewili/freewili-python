@@ -31,8 +31,13 @@ def test_hw_i2c_nothing_attached() -> None:
         assert response_frame.rf_type_data == r"i\p"
         assert response_frame.timestamp != 0
         # assert response_frame.seq_number == 4
-        if response_frame.response != "0":
-            raise I2CHardwareFoundError("Poll found I2C devices")
+        # '[i\\p 0DFA6AF1068E68BB 2 1 20 1]'
+        i2c_count_str, *address_list = response_frame.response.split(" ")
+        i2c_count: int = int(i2c_count_str, 10)
+        addresses: tuple = tuple([int(x, 16) for x in address_list])
+        assert i2c_count == len(addresses)
+        if i2c_count > 0:
+            raise I2CHardwareFoundError(f"Poll found {i2c_count} I2C devices. Ensure VIO jumper is correct.")
         assert response_frame.response == "0"
         assert response_frame.success == 1
 
@@ -73,9 +78,14 @@ def test_hw_i2c_sparkfun_9dof_imu_breakout() -> None:
         assert response_frame.rf_type == ResponseFrameType.Standard
         assert response_frame.rf_type_data == r"i\p"
         assert response_frame.timestamp != 0
-        if response_frame.response == "0":
-            raise NoI2CHardwareError("Poll found nothing")
-        assert response_frame.response == "2 30 6B"
+        # '[i\\p 0DFA6AF1068E68BB 2 1 20 1]'
+        i2c_count_str, *address_list = response_frame.response.split(" ")
+        i2c_count: int = int(i2c_count_str, 10)
+        addresses: tuple = tuple([int(x, 16) for x in address_list])
+        assert i2c_count == len(addresses)
+        if i2c_count == 0:
+            raise NoI2CHardwareError(f"Poll found {i2c_count} I2C devices")
+        assert response_frame.response == "3 20 30 6B"
         assert response_frame.success == 1
 
         # Lets read from ISM330DHCX

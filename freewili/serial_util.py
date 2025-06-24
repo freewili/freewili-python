@@ -370,7 +370,7 @@ class FreeWiliSerial:
         """
         # k) GUI Functions
         # s) Set Board LED [25 100 100 100]
-        cmd = f"k\ns\n{io} {red} {green} {blue}"
+        cmd = f"g\ns\n{io} {red} {green} {blue}"
 
         self.serial_port.send(cmd)
         resp = self._wait_for_response_frame()
@@ -472,7 +472,7 @@ class FreeWiliSerial:
         """
         return self._write_and_read_bytes_cmd("s\n", data, self.DEFAULT_SEGMENT_SIZE)
 
-    @needs_open(True)
+    @needs_open(False)
     def write_i2c(self, address: int, register: int, data: bytes) -> Result[ResponseFrame, str]:
         """Write I2C data.
 
@@ -556,7 +556,7 @@ class FreeWiliSerial:
         # k) GUI Functions
         # l) Show FWI Image [pip_boy.fwi]
         self._set_menu_enabled(False)
-        cmd = f"k\nl\n{fwi_path}"
+        cmd = f"g\nl\n{fwi_path}"
         self.serial_port.send(cmd)
         resp = self._wait_for_response_frame()
         return resp
@@ -577,7 +577,7 @@ class FreeWiliSerial:
         # k) GUI Functions
         # t) Reset Display
         self._set_menu_enabled(False)
-        cmd = "k\nt"
+        cmd = "g\nt"
         self.serial_port.send(cmd)
         resp = self._wait_for_response_frame()
         return resp
@@ -599,7 +599,7 @@ class FreeWiliSerial:
         # k) GUI Functions
         # p) Show Text Display
         self._set_menu_enabled(False)
-        cmd = f"k\np\n{text}"
+        cmd = f"g\np\n{text}"
         self.serial_port.send(cmd)
         resp = self._wait_for_response_frame()
         return resp
@@ -620,7 +620,7 @@ class FreeWiliSerial:
         # k) GUI Functions
         # u) Read All Buttons
         self._set_menu_enabled(False)
-        cmd = "k\nu"
+        cmd = "g\nu"
         self.serial_port.send(cmd)
         resp = self._wait_for_response_frame()
         return resp
@@ -655,7 +655,7 @@ class FreeWiliSerial:
             Result[bytes, str]:
                 Ok(bytes) if the command was sent successfully, Err(str) if not.
         """
-        return self._write_and_read_bytes_cmd("k\n", data, self.DEFAULT_SEGMENT_SIZE)
+        return self._write_and_read_bytes_cmd("g\n", data, self.DEFAULT_SEGMENT_SIZE)
 
     @needs_open(False)
     def write_uart(self, data: bytes) -> Result[bytes, str]:
@@ -751,12 +751,54 @@ class FreeWiliSerial:
         self.serial_port.send(cmd, delay_sec=0.3)
         resp = self._wait_for_response_frame()
         if resp.is_err():
+            # lets try legacy support
+            result = self.send_file_legacy(source_file, target_name)
+            if result.is_ok():
+                return Ok(result.value())
             return Err(resp.err())
         with source_file.open("rb") as f:
             while chunk := f.read(64):
                 self.serial_port.send(chunk, False, delay_sec=0.3)
         resp = self._wait_for_response_frame()
         return resp
+
+    @needs_open(False)
+    def send_file_legacy(self, source_file: pathlib.Path, target_name: str) -> Result[str, str]:
+        """Send a file to the FreeWili with firmware older than v48 Main and v46 Display.
+
+        Arguments:
+        ----------
+        source_file: pathlib.Path
+            Path to the file to be sent.
+        target_name: str
+            Name of the file in the FreeWili.
+
+        Returns:
+        -------
+            Result[str, str]:
+                Returns Ok(str) if the command was sent successfully, Err(str) if not.
+        """
+        if not isinstance(source_file, pathlib.Path):
+            source_file = pathlib.Path(source_file)
+        if not source_file.exists():
+            return Err(f"{source_file} does not exist.")
+        fsize = source_file.stat().st_size
+        # generate the checksum
+        checksum = 0
+        with source_file.open("rb") as f:
+            while byte := f.read(1):
+                checksum += int.from_bytes(byte, "little")
+                if checksum & 0x8000:
+                    checksum ^= 2054
+                checksum &= 0xFFFFFF
+        # send the download command
+        self.serial_port.send(f"x\nf\n{target_name} {fsize} {checksum}\n", False, delay_sec=0.1)
+        print(f"Downloading {source_file} ({fsize} bytes) as {target_name} on {self}")
+        with source_file.open("rb") as f:
+            while byte := f.read(1):
+                self.serial_port.send(byte, False, delay_sec=0.001)
+        time.sleep(0.1)
+        return Ok(f"Downloaded {source_file} ({fsize} bytes) as {target_name} to {self}")
 
     @needs_open(False)
     def get_file(self, source_file: str, destination_path: pathlib.Path) -> Result[bytearray, str]:

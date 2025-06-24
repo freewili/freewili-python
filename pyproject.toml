@@ -68,7 +68,7 @@ fwi-convert = "freewili.cli_convert:main"
 [dependency-groups]
 dev = [
     "mypy == 1.15.0",
-    "ruff == 0.11.0",
+    "ruff == 0.12.0",
     "pre-commit == 4.1.0",
     "pytest>=8.3.5",
     "check-wheel-contents>=0.6.1",

@@ -227,7 +227,7 @@ class FreeWili:
         self._stay_open = value
 
     def open(self, block: bool = True, timeout_sec: float = 6.0) -> Result[None, str]:
-        """Close the serial port. Use in conjunction with stay_open.
+        """Open the serial port. Use in conjunction with stay_open.
 
         Arguments:
         ----------

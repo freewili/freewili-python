@@ -16,7 +16,7 @@ def test_hw_board_leds() -> None:
         for led_num in range(7):
             response_frame = device.set_board_leds(led_num, 50, 50, 50).expect("Failed to set LED")
             assert response_frame.rf_type == ResponseFrameType.Standard
-            assert response_frame.rf_type_data == r"k\s"
+            assert response_frame.rf_type_data == r"g\s"
             assert response_frame.timestamp != 0
             assert response_frame.response == "Ok"
             assert response_frame.is_ok()
@@ -24,7 +24,7 @@ def test_hw_board_leds() -> None:
         for led_num in range(7):
             response_frame = device.set_board_leds(led_num, 0, 0, 0).expect("Failed to set LED")
             assert response_frame.rf_type == ResponseFrameType.Standard
-            # assert response_frame.rf_type_data == r"k\s"
+            # assert response_frame.rf_type_data == r"g\s"
             assert response_frame.timestamp != 0
             assert response_frame.response == "Ok"
             assert response_frame.is_ok()
@@ -41,14 +41,14 @@ def test_hw_show_gui_image() -> None:
     try:
         response_frame = device.show_gui_image("pip_boy.fwi").expect("Failed to show image")
         assert response_frame.rf_type == ResponseFrameType.Standard
-        assert response_frame.rf_type_data == r"k\l"
+        assert response_frame.rf_type_data == r"g\l"
         assert response_frame.timestamp != 0
-        assert response_frame.response == "Ok"
+        assert response_frame.response == "Ok", "Is pip_boy.fwi uploaded to the device?"
         assert response_frame.is_ok()
 
         response_frame = device.reset_display().expect("Failed to reset display")
         assert response_frame.rf_type == ResponseFrameType.Standard
-        assert response_frame.rf_type_data == r"k\t"
+        assert response_frame.rf_type_data == r"g\t"
         assert response_frame.timestamp != 0
         assert response_frame.response == "Ok"
         assert response_frame.is_ok()
@@ -65,7 +65,7 @@ def test_hw_show_text_display() -> None:
     try:
         response_frame = device.show_text_display("test").expect("Failed to show image")
         assert response_frame.rf_type == ResponseFrameType.Standard
-        assert response_frame.rf_type_data == r"k\p"
+        assert response_frame.rf_type_data == r"g\p"
         assert response_frame.timestamp != 0
         assert response_frame.response == "Ok"
         assert response_frame.is_ok()
@@ -82,7 +82,7 @@ def test_hw_read_all_buttons() -> None:
     try:
         response_frame = device.read_all_buttons().expect("Failed to show image")
         assert response_frame.rf_type == ResponseFrameType.Standard
-        assert response_frame.rf_type_data == r"k\u"
+        assert response_frame.rf_type_data == r"g\u"
         assert response_frame.timestamp != 0
         assert response_frame.response == "0 0 0 0 0"
         assert response_frame.is_ok()
