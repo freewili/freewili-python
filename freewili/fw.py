@@ -317,7 +317,10 @@ class FreeWili:
         return tuple(fw_devices)
 
     def send_file(
-        self, source_file: str | pathlib.Path, target_name: None | str, processor: None | FreeWiliProcessorType
+        self,
+        source_file: str | pathlib.Path,
+        target_name: None | str = None,
+        processor: None | FreeWiliProcessorType = None,
     ) -> Result[str, str]:
         """Send a file to the FreeWili.
 

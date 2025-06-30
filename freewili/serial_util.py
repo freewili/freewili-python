@@ -8,6 +8,7 @@ import enum
 import functools
 import pathlib
 import platform
+import queue
 import re
 import sys
 import time
@@ -740,25 +741,30 @@ class FreeWiliSerial:
         if not source_file.exists():
             return Err(f"{source_file} does not exist.")
         fsize = source_file.stat().st_size
+        print(fsize)
         # generate the checksum
         checksum = 0
         with source_file.open("rb") as f:
             while chunk := f.read(65535):
                 checksum = zlib.crc32(chunk, checksum)
         # send the file
-        self._set_menu_enabled(False)
+        # self._set_menu_enabled(False)
         cmd = f"x\nf\n{target_name} {fsize} {checksum}"
-        self.serial_port.send(cmd, delay_sec=0.3)
-        resp = self._wait_for_response_frame()
+        self.serial_port.send(cmd, delay_sec=0.0)
+        resp = self._wait_for_response_frame(timeout_sec=1.0)
         if resp.is_err():
             # lets try legacy support
             result = self.send_file_legacy(source_file, target_name)
             if result.is_ok():
-                return Ok(result.value())
+                return Ok(result.value)
             return Err(resp.err())
+        chunk_size: int = 32768
         with source_file.open("rb") as f:
-            while chunk := f.read(64):
-                self.serial_port.send(chunk, False, delay_sec=0.3)
+            i = 0
+            while chunk := f.read(chunk_size):
+                i += len(chunk)
+                self.serial_port.send(chunk, False, delay_sec=0)
+                print(f"Sent {i}/{fsize}")
         resp = self._wait_for_response_frame()
         return resp
 
@@ -794,9 +800,14 @@ class FreeWiliSerial:
         # send the download command
         self.serial_port.send(f"x\nf\n{target_name} {fsize} {checksum}\n", False, delay_sec=0.1)
         print(f"Downloading {source_file} ({fsize} bytes) as {target_name} on {self}")
+        chunk_size: int = 1
         with source_file.open("rb") as f:
-            while byte := f.read(1):
-                self.serial_port.send(byte, False, delay_sec=0.001)
+            i = 0
+            while b := f.read(chunk_size):
+                i += len(b)
+                self.serial_port.send(b, False, delay_sec=0.01)
+                if i % 512 == 0:
+                    print(f"Downloaded {i} bytes")
         time.sleep(0.1)
         return Ok(f"Downloaded {source_file} ({fsize} bytes) as {target_name} to {self}")
 
@@ -816,7 +827,29 @@ class FreeWiliSerial:
             Result[bytearray, str]:
                 Returns an array of bytes if the command was sent successfully, Err(str) if not.
         """
-        raise NotImplementedError("TODO")
+        # send the download command
+        with open(destination_path, "wb") as f:
+            self.serial_port.send(f"x\nu\n{source_file} \n", False, delay_sec=0.1)
+            rf = self._wait_for_response_frame()
+            print(rf)
+            count = 0
+            try:
+                while data := self.serial_port.data_queue.get(True, 2.0):
+                    count += len(data)
+                    print(count)
+                    f.write(data)
+                    f.flush()
+                    self.serial_port.data_queue.task_done()
+            except queue.Empty:
+                print("Empty reached")
+            print(f"Downloaded {count} bytes")
+            try:
+                while rf_event := self.serial_port.rf_event_queue.get(True, 1.0):
+                    print(rf_event)
+                    self.serial_port.rf_event_queue.task_done()
+            except queue.Empty:
+                print("Empty reached")
+        return self._wait_for_response_frame()
         # self._set_menu_enabled(False)
         # asdf = self.serial_port.data_queue.get()
         # # clear the data buffer

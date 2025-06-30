@@ -39,6 +39,16 @@ def test_hw_show_gui_image() -> None:
     device.stay_open = True
 
     try:
+        response_frame = device.send_file("tests/assets/pip_boy.fwi").expect("Failed to upload file")
+        assert response_frame.rf_type == ResponseFrameType.Standard
+        assert response_frame.rf_type_data == r"g\l"
+        assert response_frame.timestamp != 0
+        assert response_frame.response == "Ok", "Is pip_boy.fwi uploaded to the device?"
+        assert response_frame.is_ok()
+    finally:
+        device.close()
+
+    try:
         response_frame = device.show_gui_image("pip_boy.fwi").expect("Failed to show image")
         assert response_frame.rf_type == ResponseFrameType.Standard
         assert response_frame.rf_type_data == r"g\l"
