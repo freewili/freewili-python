@@ -753,10 +753,10 @@ class FreeWiliSerial:
         self.serial_port.send(cmd, delay_sec=0.0)
         resp = self._wait_for_response_frame(timeout_sec=1.0)
         if resp.is_err():
-            # lets try legacy support
-            result = self.send_file_legacy(source_file, target_name)
-            if result.is_ok():
-                return Ok(result.value)
+            # # lets try legacy support
+            # result = self.send_file_legacy(source_file, target_name)
+            # if result.is_ok():
+            #     return Ok(result.value)
             return Err(resp.err())
         chunk_size: int = 32768
         with source_file.open("rb") as f:
@@ -834,21 +834,28 @@ class FreeWiliSerial:
             print(rf)
             count = 0
             try:
-                while data := self.serial_port.data_queue.get(True, 2.0):
+                print("Waiting for data...")
+                while data := self.serial_port.data_queue.get(True, 10):
                     count += len(data)
-                    print(count)
+                    print(f"Found {count} data...")
                     f.write(data)
                     f.flush()
                     self.serial_port.data_queue.task_done()
             except queue.Empty:
-                print("Empty reached")
+                print("Data Queue Empty reached")
             print(f"Downloaded {count} bytes")
             try:
-                while rf_event := self.serial_port.rf_event_queue.get(True, 1.0):
+                while rf_event := self.serial_port.rf_event_queue.get(True, 0.1):
                     print(rf_event)
                     self.serial_port.rf_event_queue.task_done()
             except queue.Empty:
-                print("Empty reached")
+                print("RF Event Empty reached")
+            # try:
+            #     while rf := self.serial_port.rf_queue.get(True, 0.1):
+            #         print(rf)
+            #         self.serial_port.rf_queue.task_done()
+            # except queue.Empty:
+            #     print("RF Empty reached")
         return self._wait_for_response_frame()
         # self._set_menu_enabled(False)
         # asdf = self.serial_port.data_queue.get()
