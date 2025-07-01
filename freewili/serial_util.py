@@ -854,25 +854,34 @@ class FreeWiliSerial:
         with open(destination_path, "wb") as f:
             count = 0
             _user_cb_func("Waiting for data...")
-            try:
-                timeout_bytes: int = 0
-                while data := self.serial_port.data_queue.get(True, 1.0):
-                    count += len(data)
-                    timeout_bytes += len(data)
-                    if timeout_bytes >= 4096:
-                        _user_cb_func(f"Saving {count} of {fsize} bytes. {count / fsize * 100:.2f}%")
-                        timeout_bytes = 0
-                    f.write(data)
-                    checksum = zlib.crc32(data, checksum)
-                    self.serial_port.data_queue.task_done()
-                    try:
-                        rf = self._wait_for_event_response_frame(0.0)
-                        if rf.is_ok():
-                            _user_cb_func(rf.ok_value.response)
-                    except queue.Empty:
-                        pass
-            except queue.Empty:
-                _user_cb_func(f"Saved {count} bytes. {count / fsize * 100:.2f}%")
+            # Count how many bytes we have collected since last user callback
+            cb_timeout_byte_count: int = 0
+            last_bytes_received = time.time()
+            while count < fsize:
+                # Make sure we aren't sitting here spinning forever
+                if time.time() - last_bytes_received >= 6.0:
+                    return Err(f"Failed to get all file data {source_file}: Got {count} of expected {fsize} bytes.")
+                try:
+                    data = self.serial_port.data_queue.get_nowait()
+                except queue.Empty:
+                    time.sleep(0.001)
+                    continue
+                last_bytes_received = time.time()
+                count += len(data)
+                cb_timeout_byte_count += len(data)
+                if cb_timeout_byte_count >= 4096:
+                    _user_cb_func(f"Saving {source_file} {count} of {fsize} bytes. {count / fsize * 100:.2f}%")
+                    cb_timeout_byte_count = 0
+                f.write(data)
+                checksum = zlib.crc32(data, checksum)
+                self.serial_port.data_queue.task_done()
+                try:
+                    rf = self._wait_for_event_response_frame(0.0)
+                    if rf.is_ok():
+                        _user_cb_func(rf.ok_value.response)
+                except queue.Empty:
+                    pass
+            _user_cb_func(f"Saved {source_file} {count} bytes to {destination_path}. {count / fsize * 100:.2f}%")
         # b'[u 0DF8213FA48CA2A3 295 success 153624 bytes 1743045997 crc 1]\r\n'
         rf = self._wait_for_response_frame()
         if rf.is_ok():

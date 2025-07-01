@@ -1,34 +1,33 @@
+# noqa
 import time
+
 from freewili import FreeWili
-from freewili.serial_util import IOMenuCommand
 from freewili.types import FreeWiliProcessorType
 
 
-device = FreeWili.find_first().expect("Failed to find a FreeWili")
-print(device)
-#device.stay_open = True
-device.open().expect("Failed to open")
-# for _ in range(10):
-#     for led_num in range(7):
-#         resp = device.set_board_leds(led_num, 10, 10, led_num * 2).expect("Failed to set LED")
-#         print("On:", led_num, resp.success)
-#     for led_num in range(7):
-#         resp = device.set_board_leds(led_num, 0, 0, 0).expect("Failed to set LED")
-#         print("Off:", led_num, resp.success)
-# resp = device.run_script("test.wasm").expect("Failed to run script")
-# print("Response: ", resp)
-# for _ in range(10):
-#     #resp = device.set_board_leds(0, 10, 10, 10).expect("Failed to set LED")
-#     #print("On:", 0, resp.success)
-#     print(device.get_io().expect("Failed to get IO"))
-#     print(device.set_io(25, IOMenuCommand.High).expect("Failed to set IO high"))
-#     #time.sleep(0.1)
-#     print(device.set_io(25, IOMenuCommand.Low).expect("Failed to set IO low"))
-#resp = device.send_file("test.txt", "/scripts/test.txt", FreeWiliProcessorType.Main).expect("Failed to send file")
-#print(resp)
-#resp = device.get_file("/scripts/test.txt", "test.txt", FreeWiliProcessorType.Main).expect("Failed to get file")
-#print(resp)
-#print(device.reset_to_uf2_bootloader(FreeWiliProcessorType.Main))
-print(device.main_serial.get_app_info())
-device.close()
-print("Done.")
+def event_cb(msg: str) -> None:
+    """Temporary."""
+    print(f"[CB]: {msg}")
+
+
+count: int = 0
+while True:
+    count += 1
+    device = FreeWili.find_first().expect("Failed to find a FreeWili")
+    print(device)
+    # device.stay_open = True
+    device.open().expect("Failed to open")
+    # rf = device.send_file("tests/assets/pip_boy.fwi", "/images/pip_boy.fwi", FreeWiliProcessorType.Display).expect(
+    #     "Failed to send file"
+    # )
+    # print(rf)
+    # print("\n" * 2)
+    # print("=" * 80)
+    # print("\n" * 2)
+    rf = device.get_file(
+        "/images/pip_boy.fwi", "pip_boy_downloaded.fwi", event_cb, FreeWiliProcessorType.Display
+    ).expect(f"Failed to get file. {count}")
+    print(rf)
+    device.close()
+    print(f"Done. {count}")
+    time.sleep(2)
