@@ -258,7 +258,7 @@ class SerialPort(threading.Thread):
                     data = serial_port.read(4096)
                     if data != b"":
                         read_buffer.write(data)
-                        self._debug_print(f"[{time.time() - start_time:.3f}] RX: ", repr(data), len(data))
+                        # self._debug_print(f"[{time.time() - start_time:.3f}] RX: ", repr(data), len(data))
                     # self._debug_print("handle data...")
                     self._handle_data(read_buffer)
             except Exception as ex:
@@ -276,23 +276,52 @@ class SerialPort(threading.Thread):
         if self._debug_enabled:
             print(*args, **kwargs)
 
+    _debug_count: int = 0
+
     def _handle_data(self, data_buffer: SafeIOFIFOBuffer) -> None:
         assert isinstance(data_buffer, SafeIOFIFOBuffer)
+        # Match a full event response frame
         while frame := data_buffer.pop_first_match(rb"\[\*.*.\d\]\r?\n"):
             self._debug_print(f"RX Event Frame: {frame!r}")
             self.rf_event_queue.put(ResponseFrame.from_raw(frame))
+            _debug_count = 0
+        # Match a full response frame
         while frame := data_buffer.pop_first_match(rb"\[[^\*].*.\d\]\r?\n"):
             self._debug_print(f"RX Frame: {frame!r}")
             self.rf_queue.put(ResponseFrame.from_raw(frame))
-        # If we match the beginning of an Event Response Frame or Normal response frame don't add to the buffer yet.
+            self._debug_count = 0
+        # Match anything else
         try:
-            _start, _end = data_buffer.contains(rb"(\[\*)|(\[.\\. )")
-            # We might have the start of a frame here, ignore for now.
-        except ValueError:
-            data = data_buffer.read(-1)
-            if data:
-                self._debug_print(f"RX Data: {len(data)}: {data!r}")
+            # add anything before [ to the data queue
+            start, end = data_buffer.contains(rb"\[")
+            if start > 0:
+                data = data_buffer.read(start)
+                self._debug_print(f"RX Data: {len(data)}: {self._debug_count}: {data!r}")
                 self.data_queue.put(data)
+                self._debug_count += len(data)
+        except ValueError:
+            pass
+
+        # At this point we should be at the start of a frame
+        data_len = data_buffer.available()
+        data = data_buffer.peek(data_len)
+        # If we only have a single byte and it's a [, we are done
+        if data_len == 1 and data == b"[":
+            return
+        if data_len == 2 and data == b"[*":
+            return
+        if data_len >= 3:
+            try:
+                # [*f or [a\
+                _start, _end = data_buffer.contains(rb"(\[\*)|(\[.\\)|(\[. )")
+                # This is probably a start of a frame, do nothing
+                return
+            except ValueError:
+                data = data_buffer.read(-1)
+                if data:
+                    self._debug_print(f"RX Data: {len(data)}: {self._debug_count}: {data!r}")
+                    self.data_queue.put(data)
+                    self._debug_count += len(data)
 
     def send(
         self,

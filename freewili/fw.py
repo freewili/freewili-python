@@ -4,7 +4,7 @@ import pathlib
 import platform
 import sys
 from dataclasses import dataclass
-from typing import List
+from typing import Callable, List
 
 if sys.version_info >= (3, 11):
     from typing import Self
@@ -358,7 +358,11 @@ class FreeWili:
                 raise RuntimeError("Missing case statement")
 
     def get_file(
-        self, source_file: str, destination_path: pathlib.Path, processor: FreeWiliProcessorType
+        self,
+        source_file: str,
+        destination_path: pathlib.Path,
+        event_cb: Callable | None,
+        processor: FreeWiliProcessorType,
     ) -> Result[str, str]:
         """Send a file to the FreeWili.
 
@@ -368,6 +372,9 @@ class FreeWili:
                 Path to the file to be sent.
             destination_path: pathlib.Path
                 file path to save on the PC
+            event_cb: Callable | None
+                event callback function. Takes two arguments of a ResponseFrame and a string.
+                    def user_callback(rf: ResponseFrame | None, msg: str) -> None
             processor: None | FreeWiliProcessorType
                 Processor to upload the file to. If None, will be determined automatically based on the filename.
 
@@ -378,7 +385,7 @@ class FreeWili:
         """
         match self.get_serial_from(processor):
             case Ok(serial):
-                return serial.get_file(source_file, destination_path)
+                return serial.get_file(source_file, destination_path, event_cb)
             case Err(msg):
                 return Err(msg)
             case _:

@@ -25,6 +25,7 @@ def test_peek_and_seek() -> None:
     buf.seek(3)
     assert buf.read(2) == b"de"
     assert buf.tell() == 5
+    assert buf.available() == 1
 
 
 def test_readline() -> None:
@@ -32,15 +33,19 @@ def test_readline() -> None:
     buf = SafeIOFIFOBuffer()
     buf.write(b"line1\nline2\n")
     assert buf.readline() == b"line1\n"
+    assert buf.available() == 6
     assert buf.readline() == b"line2\n"
+    assert buf.available() == 0
 
 
 def test_readuntil() -> None:
     """Test readuntil."""
     buf = SafeIOFIFOBuffer()
     buf.write(b"part1|part2|")
+    assert buf.available() == 12
     assert buf.readuntil(b"|") == b"part1|"
     assert buf.readuntil(b"|") == b"part2|"
+    assert buf.available() == 0
 
 
 def test_blocking_read() -> None:
@@ -49,11 +54,13 @@ def test_blocking_read() -> None:
     result = []
 
     def reader() -> None:
+        assert buf.available() == 0
         result.append(buf.read(4))
+        assert buf.available() == 0
 
     t = threading.Thread(target=reader)
     t.start()
-    time.sleep(0.1)
+    time.sleep(0.2)
     buf.write(b"abcd")
     t.join()
     assert result[0] == b"abcd"
@@ -137,12 +144,16 @@ def test_pop_first_match() -> None:
 def test_contains() -> None:
     """Test contains."""
     buf = SafeIOFIFOBuffer()
-    buf.write(rb"35873723\r\n35873723\r\n")
-    buf.write(rb"[x\f 0DE8F4AC8194AE32 12 Send File Now 1]\r\n")
-    contains = buf.contains(rb"\[.\\. .*.\d\].*\\n")
+    start_data = rb"35873723\r\n35873723\r\n"
+    buf.write(start_data)
+    assert buf.available() == len(start_data)
+    frame_data = rb"[x\f 0DE8F4AC8194AE32 12 Send File Now 1]\r\n"
+    buf.write(frame_data)
+    start, end = buf.contains(rb"\[.\\. .*.\d\].*\\n")
+    assert start == len(start_data)
+    assert end == len(start_data) + len(frame_data)
     with pytest.raises(ValueError):
         buf.contains(rb"thisshouldn'tmatchanything")
-    assert contains
     buf.close()
 
 

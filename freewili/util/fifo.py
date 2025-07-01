@@ -250,6 +250,17 @@ class SafeIOFIFOBuffer(io.RawIOBase):
             self._check_closed()
             return self._read_pos
 
+    def available(self) -> int:
+        """Return the number of bytes available for reading.
+
+        Returns:
+        -------
+            int: Number of bytes available for reading.
+        """
+        with self._lock:
+            self._check_closed()
+            return len(self._buffer) - self._read_pos
+
     def pop_first_match(self, pattern: bytes) -> bytes | None:
         r"""Searches for the first regex match in the bytearray, removes it, and returns the match.
 
@@ -295,11 +306,11 @@ class SafeIOFIFOBuffer(io.RawIOBase):
             search_region = self._buffer[self._read_pos :]
             match = re.search(pattern, search_region)
             if match:
-                start = self._read_pos + match.start()
-                end = self._read_pos + match.end()
+                start = match.start()
+                end = match.end()
                 return (start, end)
             else:
-                raise ValueError
+                raise ValueError("Pattern not found in buffer")
 
     def close(self) -> None:
         """Close the buffer and wake up all waiting readers."""

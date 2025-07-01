@@ -450,12 +450,51 @@ class FreeWiliSerial:
             Result[ResponseFrame, str]:
                 Ok(ResponseFrame) if the response frame was found, Err(str) if not.
         """
-        try:
-            # return ResponseFrame.from_raw("[k\\s 0DE8F442FBC41063 14 Ok 1]")
-            resp = self.serial_port.rf_queue.get(True, timeout_sec)
-            return resp
-        except Empty:
-            return Err(f"Failed to read response frame in {timeout_sec} seconds")
+        # return ResponseFrame.from_raw("[k\\s 0DE8F442FBC41063 14 Ok 1]")
+        start = time.time()
+        while time.time() - start <= timeout_sec or timeout_sec == 0:
+            try:
+                # We do get_nowait here because we don't want to block
+                return self.serial_port.rf_queue.get_nowait()
+            except Empty:
+                pass
+            if timeout_sec == 0:
+                break
+        return Err(f"Failed to read response frame in {timeout_sec} seconds")
+
+    def _wait_for_event_response_frame(self, timeout_sec: float = 6.0) -> Result[ResponseFrame, str]:
+        """Wait for a response frame after sending a command.
+
+        Parameters:
+        ----------
+            timeout_sec : float
+                Time to wait in seconds before we error out.
+
+        Returns:
+        -------
+            Result[ResponseFrame, str]:
+                Ok(ResponseFrame) if the response frame was found, Err(str) if not.
+        """
+        # return ResponseFrame.from_raw("[*filedl 0DE8F442FBC41063 14 Ok 1]")
+        start = time.time()
+        while time.time() - start <= timeout_sec or timeout_sec == 0:
+            try:
+                # We do get_nowait here because we don't want to block
+                return self.serial_port.rf_event_queue.get_nowait()
+            except Empty:
+                pass
+            if timeout_sec == 0:
+                break
+        return Err(f"Failed to read event response frame in {timeout_sec} seconds")
+
+    def _empty_data_queue(self) -> None:
+        """Empty the data queue.
+
+        This is used to clear the data queue before sending a command
+        to ensure that we don't process stale data.
+        """
+        while not self.serial_port.data_queue.empty():
+            self.serial_port.data_queue.get()
 
     @needs_open(False)
     def read_write_spi_data(self, data: bytes) -> Result[bytes, str]:
@@ -769,50 +808,7 @@ class FreeWiliSerial:
         return resp
 
     @needs_open(False)
-    def send_file_legacy(self, source_file: pathlib.Path, target_name: str) -> Result[str, str]:
-        """Send a file to the FreeWili with firmware older than v48 Main and v46 Display.
-
-        Arguments:
-        ----------
-        source_file: pathlib.Path
-            Path to the file to be sent.
-        target_name: str
-            Name of the file in the FreeWili.
-
-        Returns:
-        -------
-            Result[str, str]:
-                Returns Ok(str) if the command was sent successfully, Err(str) if not.
-        """
-        if not isinstance(source_file, pathlib.Path):
-            source_file = pathlib.Path(source_file)
-        if not source_file.exists():
-            return Err(f"{source_file} does not exist.")
-        fsize = source_file.stat().st_size
-        # generate the checksum
-        checksum = 0
-        with source_file.open("rb") as f:
-            while byte := f.read(1):
-                checksum += int.from_bytes(byte, "little")
-                if checksum & 0x8000:
-                    checksum ^= 2054
-                checksum &= 0xFFFFFF
-        # send the download command
-        self.serial_port.send(f"x\nf\n{target_name} {fsize} {checksum}\n", False, delay_sec=0.1)
-        print(f"Downloading {source_file} ({fsize} bytes) as {target_name} on {self}")
-        chunk_size: int = 1
-        with source_file.open("rb") as f:
-            i = 0
-            while b := f.read(chunk_size):
-                i += len(b)
-                self.serial_port.send(b, False, delay_sec=0.01)
-                if i % 512 == 0:
-                    print(f"Downloaded {i} bytes")
-        time.sleep(0.1)
-        return Ok(f"Downloaded {source_file} ({fsize} bytes) as {target_name} to {self}")
-
-    @needs_open(False)
-    def get_file(self, source_file: str, destination_path: pathlib.Path) -> Result[bytearray, str]:
+    def get_file(self, source_file: str, destination_path: pathlib.Path, event_cb: Callable | None) -> Result[str, str]:
         """Get a file from the FreeWili.
 
         Arguments:
@@ -821,61 +817,77 @@ class FreeWiliSerial:
             Name of the file in the FreeWili. 8.3 filename limit exists as of V12
         destination_path: pathlib.Path
             file path to save on the PC
+        event_cb: Callable | None
+            event callback function. Takes one arguments - a string.
+                def user_callback(msg: str) -> None
 
         Returns:
         -------
-            Result[bytearray, str]:
-                Returns an array of bytes if the command was sent successfully, Err(str) if not.
+            Result[str, str]:
+                Returns Ok(str) if the command was sent successfully, Err(str) if not.
         """
+
+        def _user_cb_func(msg: str) -> None:
+            if callable(event_cb):
+                event_cb(msg)
+
         # send the download command
+        start_time = time.time()
+        self._empty_data_queue()
+        _user_cb_func("Sending command...")
+        self.serial_port.send(f"x\nu\n{source_file} \n", False, delay_sec=0.1)
+        _user_cb_func("Waiting for response frame...")
+        rf = self._wait_for_response_frame()
+        if rf.is_err():
+            return Err(f"Failed to get file {source_file}: {rf.err_value}")
+        rf = rf.ok_value
+        fsize: int = 0
+        if not rf.is_ok():
+            msg = f"Request to get file {source_file} failed: {rf.unwrap().response}"
+            _user_cb_func(msg)
+            return Err(msg)
+        else:
+            fsize = int(rf.response.split(" ")[-1])
+            _user_cb_func(f"Requested file {source_file} successfully with {fsize} bytes.")
+        _user_cb_func(f"Opening/Creating file {destination_path}")
+        checksum = 0
         with open(destination_path, "wb") as f:
-            self.serial_port.send(f"x\nu\n{source_file} \n", False, delay_sec=0.1)
-            rf = self._wait_for_response_frame()
-            print(rf)
             count = 0
+            _user_cb_func("Waiting for data...")
             try:
-                print("Waiting for data...")
-                while data := self.serial_port.data_queue.get(True, 10):
+                timeout_bytes: int = 0
+                while data := self.serial_port.data_queue.get(True, 1.0):
                     count += len(data)
-                    print(f"Found {count} data...")
+                    timeout_bytes += len(data)
+                    if timeout_bytes >= 4096:
+                        _user_cb_func(f"Saving {count} of {fsize} bytes. {count / fsize * 100:.2f}%")
+                        timeout_bytes = 0
                     f.write(data)
-                    f.flush()
+                    checksum = zlib.crc32(data, checksum)
                     self.serial_port.data_queue.task_done()
+                    try:
+                        rf = self._wait_for_event_response_frame(0.0)
+                        if rf.is_ok():
+                            _user_cb_func(rf.ok_value.response)
+                    except queue.Empty:
+                        pass
             except queue.Empty:
-                print("Data Queue Empty reached")
-            print(f"Downloaded {count} bytes")
-            try:
-                while rf_event := self.serial_port.rf_event_queue.get(True, 0.1):
-                    print(rf_event)
-                    self.serial_port.rf_event_queue.task_done()
-            except queue.Empty:
-                print("RF Event Empty reached")
-            # try:
-            #     while rf := self.serial_port.rf_queue.get(True, 0.1):
-            #         print(rf)
-            #         self.serial_port.rf_queue.task_done()
-            # except queue.Empty:
-            #     print("RF Empty reached")
-        return self._wait_for_response_frame()
-        # self._set_menu_enabled(False)
-        # asdf = self.serial_port.data_queue.get()
-        # # clear the data buffer
-        # while True:
-        #     try:
-        #         data = self.serial_port.data_queue.get_nowait()
-        #         self.serial_port.data_queue.task_done()
-        #     except Empty:
-        #         break
-        # cmd = f"x\nu\n{source_file}"
-        # self.serial_port.send(cmd)
-        # resp = self._wait_for_response_frame()
-        # if resp.is_err():
-        #     return Err(resp.err_value())
-        # time.sleep(0.5)
-        # data = self.serial_port.data_queue.get(True, 1.0)
-        # resp = self._wait_for_response_frame()
-        # print(resp)
-        # return Ok(data)
+                _user_cb_func(f"Saved {count} bytes. {count / fsize * 100:.2f}%")
+        # b'[u 0DF8213FA48CA2A3 295 success 153624 bytes 1743045997 crc 1]\r\n'
+        rf = self._wait_for_response_frame()
+        if rf.is_ok():
+            _user_cb_func(rf.ok_value.response)
+            # success 153624 bytes 1743045997 crc
+            values = rf.ok_value.response.split(" ")
+            crc = int(values[-2])
+            sent_size = int(values[-4])
+            if sent_size != count:
+                return Err(f"Failed to get file {source_file}: Sent size mismatch. Expected {fsize}, received {count}")
+            if crc != checksum:
+                return Err(f"Failed to get file {source_file}: CRC mismatch. calculated {checksum}, received {crc}")
+            return Ok(f"Saved {destination_path} with {count} bytes in {time.time() - start_time:.3f} seconds")
+        else:
+            return rf
 
     def reset_to_uf2_bootloader(self) -> Result[None, str]:
         """Reset the FreeWili to the uf2 bootloader.
