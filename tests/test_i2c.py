@@ -85,7 +85,9 @@ def test_hw_i2c_sparkfun_9dof_imu_breakout() -> None:
         assert i2c_count == len(addresses)
         if i2c_count == 0:
             raise NoI2CHardwareError(f"Poll found {i2c_count} I2C devices")
-        assert response_frame.response == "3 20 30 6B"
+        if i2c_count == 1 and addresses[0] == 0x20:
+            raise NoI2CHardwareError(f"Poll found {i2c_count} I2C devices")
+        assert response_frame.response == "3 20 30 6B", "If 1 20, this is a hardware bug, VIO isn't connected"
         assert response_frame.success == 1
 
         # Lets read from ISM330DHCX
