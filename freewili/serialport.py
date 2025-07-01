@@ -260,7 +260,7 @@ class SerialPort(threading.Thread):
                         read_buffer.write(data)
                         # self._debug_print(f"[{time.time() - start_time:.3f}] RX: ", repr(data), len(data))
                     # self._debug_print("handle data...")
-                    self._handle_data(read_buffer)
+                self._handle_data(read_buffer)
             except Exception as ex:
                 self._error_msg = str(ex)
                 self._debug_print(f"Exception: {type(ex)}: {self._error_msg}")
@@ -280,14 +280,18 @@ class SerialPort(threading.Thread):
 
     def _handle_data(self, data_buffer: SafeIOFIFOBuffer) -> None:
         assert isinstance(data_buffer, SafeIOFIFOBuffer)
+        if data_buffer.available() == 0:
+            return
         # Match a full event response frame
         while frame := data_buffer.pop_first_match(rb"\[\*.*.\d\]\r?\n"):
             self._debug_print(f"RX Event Frame: {frame!r}")
+            # self._debug_print(f"Buffer len: {data_buffer.available()} {data_buffer.peek()!r}")
             self.rf_event_queue.put(ResponseFrame.from_raw(frame))
             _debug_count = 0
         # Match a full response frame
         while frame := data_buffer.pop_first_match(rb"\[[^\*].*.\d\]\r?\n"):
             self._debug_print(f"RX Frame: {frame!r}")
+            # self._debug_print(f"Buffer len: {data_buffer.available()} {data_buffer.peek()!r}")
             self.rf_queue.put(ResponseFrame.from_raw(frame))
             self._debug_count = 0
         # Match anything else
@@ -317,11 +321,11 @@ class SerialPort(threading.Thread):
                 # This is probably a start of a frame, do nothing
                 return
             except ValueError:
-                data = data_buffer.read(-1)
-                if data:
-                    self._debug_print(f"RX Data: {len(data)}: {self._debug_count}: {data!r}")
-                    self.data_queue.put(data)
-                    self._debug_count += len(data)
+                pass
+        data = data_buffer.read(-1)
+        self._debug_print(f"RX Data: {len(data)}: {self._debug_count}: {data!r}")
+        self.data_queue.put(data)
+        self._debug_count += len(data)
 
     def send(
         self,
