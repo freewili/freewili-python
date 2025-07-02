@@ -368,8 +368,8 @@ class FreeWili:
         self,
         source_file: str,
         destination_path: str | pathlib.Path,
-        event_cb: Callable | None,
         processor: FreeWiliProcessorType | None = None,
+        event_cb: Callable | None = None,
     ) -> Result[str, str]:
         """Send a file to the FreeWili.
 
@@ -379,11 +379,11 @@ class FreeWili:
                 Path to the file to be sent.
             destination_path: pathlib.Path
                 file path to save on the PC
+            processor: None | FreeWiliProcessorType
+                Processor to upload the file to. If None, will be determined automatically based on the filename.
             event_cb: Callable | None
                 event callback function. Takes one argument of a string.
                     def user_callback(msg: str) -> None
-            processor: None | FreeWiliProcessorType
-                Processor to upload the file to. If None, will be determined automatically based on the filename.
 
         Returns:
         -------

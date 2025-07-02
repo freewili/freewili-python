@@ -75,12 +75,12 @@ def main() -> None:
         nargs=1,
         help="Set the name of the file in the FreeWili. Argument should be in the form of: <file_name>",
     )
-    # parser.add_argument(
-    #     "-u",
-    #     "--get_file",
-    #     nargs=2,
-    #     help="Get a file from the FreeWili. Argument should be in the form of: <source_file> <target_name>",
-    # )
+    parser.add_argument(
+        "-g",
+        "--get_file",
+        nargs=2,
+        help="Get a file from the FreeWili. Argument should be in the form of: <source_file> <target_name>",
+    )
     parser.add_argument(
         "-w",
         "--run_script",
@@ -193,22 +193,42 @@ def main() -> None:
             finally:
                 free_wili.close()
     if args.send_file:
+
+        def send_file_callback(msg: str) -> None:
+            if args.verbose:
+                print(msg)
+
         match get_device(device_index, devices):
             case Ok(device):
                 file_name = None
                 if args.file_name:
                     file_name = args.file_name[0]
-                print(device.send_file(args.send_file[0], file_name, processor_type).unwrap())
+                match device.send_file(args.send_file[0], file_name, processor_type, send_file_callback):
+                    case Ok(msg):
+                        print(f"Success: {msg}")
+                    case Err(msg):
+                        exit_with_error(msg)
+                    case _:
+                        exit_with_error("Missing case statement")
             case Err(msg):
                 exit_with_error(msg)
-    # if args.get_file:
-    #     match get_device(device_index, devices):
-    #         case Ok(device):
-    #             data = device.get_file(args.get_file[0]).unwrap()
-    #             with open(args.get_file[1], "w+b") as f:
-    #                 f.write(data)
-    #         case Err(msg):
-    #             exit_with_error(msg)
+    if args.get_file:
+
+        def get_file_callback(msg: str) -> None:
+            if args.verbose:
+                print(msg)
+
+        match get_device(device_index, devices):
+            case Ok(device):
+                match device.get_file(args.get_file[0], args.get_file[1], processor_type, get_file_callback):
+                    case Ok(msg):
+                        print(f"Success: {msg}")
+                    case Err(msg):
+                        exit_with_error(msg)
+                    case _:
+                        exit_with_error("Missing case statement")
+            case Err(msg):
+                exit_with_error(msg)
     if args.run_script is not None:
         match get_device(device_index, devices):
             case Ok(device):
