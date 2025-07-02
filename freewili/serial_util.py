@@ -235,7 +235,7 @@ class FreeWiliSerial:
         Example:
         -------
         >>> class MyClass:
-        >>>     @needs_open(False)
+        >>>     @needs_open()
         >>>     def my_method(self):
         >>>         pass
         >>>
@@ -301,7 +301,7 @@ class FreeWiliSerial:
                 raise TimeoutError(f"Failed to enable menus in {timeout_sec} seconds")
             time.sleep(0.05)
 
-    @needs_open(False)
+    @needs_open()
     def set_io(
         self: Self, io: int, menu_cmd: IOMenuCommand, pwm_freq: None | int = None, pwm_duty: None | int = None
     ) -> Result[ResponseFrame, str]:
@@ -349,7 +349,7 @@ class FreeWiliSerial:
         resp = self._wait_for_response_frame()
         return resp
 
-    @needs_open(False)
+    @needs_open()
     def set_board_leds(self: Self, io: int, red: int, green: int, blue: int) -> Result[ResponseFrame, str]:
         """Set the GUI RGB LEDs.
 
@@ -377,7 +377,7 @@ class FreeWiliSerial:
         resp = self._wait_for_response_frame()
         return resp
 
-    @needs_open(False)
+    @needs_open()
     def get_io(self) -> Result[tuple[int], str]:
         """Get all the IO values.
 
@@ -496,7 +496,35 @@ class FreeWiliSerial:
         while not self.serial_port.data_queue.empty():
             self.serial_port.data_queue.get()
 
-    @needs_open(False)
+    def _empty_event_response_frame_queue(self) -> None:
+        """Empty the response frameevent queue.
+
+        This is used to clear the event queue before sending a command
+        to ensure that we don't process stale data.
+        """
+        while not self.serial_port.rf_event_queue.empty():
+            self.serial_port.rf_event_queue.get()
+
+    def _empty_response_frame_queue(self) -> None:
+        """Empty the response frameevent queue.
+
+        This is used to clear the event queue before sending a command
+        to ensure that we don't process stale data.
+        """
+        while not self.serial_port.rf_event_queue.empty():
+            self.serial_port.rf_event_queue.get()
+
+    def _empty_all(self) -> None:
+        """Empty all queues.
+
+        This is used to clear the event queue before sending a command
+        to ensure that we don't process stale data.
+        """
+        self._empty_data_queue()
+        self._empty_event_response_frame_queue()
+        self._empty_response_frame_queue()
+
+    @needs_open()
     def read_write_spi_data(self, data: bytes) -> Result[bytes, str]:
         """Read and Write SPI data.
 
@@ -512,7 +540,7 @@ class FreeWiliSerial:
         """
         return self._write_and_read_bytes_cmd("s\n", data, self.DEFAULT_SEGMENT_SIZE)
 
-    @needs_open(False)
+    @needs_open()
     def write_i2c(self, address: int, register: int, data: bytes) -> Result[ResponseFrame, str]:
         """Write I2C data.
 
@@ -536,7 +564,7 @@ class FreeWiliSerial:
         resp = self._wait_for_response_frame()
         return resp
 
-    @needs_open(False)
+    @needs_open()
     def read_i2c(self, address: int, register: int, data_size: int) -> Result[ResponseFrame, str]:
         """Read I2C data.
 
@@ -560,7 +588,7 @@ class FreeWiliSerial:
         resp = self._wait_for_response_frame()
         return resp
 
-    @needs_open(False)
+    @needs_open()
     def poll_i2c(self) -> Result[ResponseFrame, str]:
         """Run a script on the FreeWili.
 
@@ -579,7 +607,7 @@ class FreeWiliSerial:
         resp = self._wait_for_response_frame()
         return resp
 
-    @needs_open(False)
+    @needs_open()
     def show_gui_image(self, fwi_path: str) -> Result[ResponseFrame, str]:
         """Show a fwi image on the display.
 
@@ -601,7 +629,7 @@ class FreeWiliSerial:
         resp = self._wait_for_response_frame()
         return resp
 
-    @needs_open(False)
+    @needs_open()
     def reset_display(self) -> Result[ResponseFrame, str]:
         """Reset the display back to the main menu.
 
@@ -622,7 +650,7 @@ class FreeWiliSerial:
         resp = self._wait_for_response_frame()
         return resp
 
-    @needs_open(False)
+    @needs_open()
     def show_text_display(self, text: str) -> Result[ResponseFrame, str]:
         """Show text on the display.
 
@@ -644,7 +672,7 @@ class FreeWiliSerial:
         resp = self._wait_for_response_frame()
         return resp
 
-    @needs_open(False)
+    @needs_open()
     def read_all_buttons(self) -> Result[ResponseFrame, str]:
         """Read all the buttons.
 
@@ -665,7 +693,7 @@ class FreeWiliSerial:
         resp = self._wait_for_response_frame()
         return resp
 
-    @needs_open(False)
+    @needs_open()
     def write_radio(self, data: bytes) -> Result[bytes, str]:
         """Write radio data.
 
@@ -681,7 +709,7 @@ class FreeWiliSerial:
         """
         return self._write_and_read_bytes_cmd("t\n", data, self.DEFAULT_SEGMENT_SIZE)
 
-    @needs_open(False)
+    @needs_open()
     def read_radio(self, data: bytes) -> Result[bytes, str]:
         """Read radio data.
 
@@ -697,7 +725,7 @@ class FreeWiliSerial:
         """
         return self._write_and_read_bytes_cmd("g\n", data, self.DEFAULT_SEGMENT_SIZE)
 
-    @needs_open(False)
+    @needs_open()
     def write_uart(self, data: bytes) -> Result[bytes, str]:
         """Write uart data.
 
@@ -713,12 +741,12 @@ class FreeWiliSerial:
         """
         return self._write_and_read_bytes_cmd("u\n", data, self.DEFAULT_SEGMENT_SIZE)
 
-    @needs_open(False)
+    @needs_open()
     def enable_stream(self, enable: bool) -> None:
         """TODO: Docstring."""
         raise NotImplementedError
 
-    @needs_open(False)
+    @needs_open()
     def run_script(self, file_name: str) -> Result[str, str]:
         """Run a script on the FreeWili.
 
@@ -738,7 +766,7 @@ class FreeWiliSerial:
         resp = self._wait_for_response_frame()
         return resp
 
-    @needs_open(False)
+    @needs_open()
     def load_fpga_from_file(self, file_name: str) -> Result[str, str]:
         """Load an FGPA from a file on the FreeWili.
 
@@ -758,8 +786,10 @@ class FreeWiliSerial:
         resp = self._wait_for_response_frame()
         return resp
 
-    @needs_open(False)
-    def send_file(self, source_file: pathlib.Path, target_name: str) -> Result[str, str]:
+    @needs_open()
+    def send_file(
+        self, source_file: pathlib.Path, target_name: str, event_cb: Callable | None, chunk_size: int = 0
+    ) -> Result[str, str]:
         """Send a file to the FreeWili.
 
         Arguments:
@@ -768,46 +798,82 @@ class FreeWiliSerial:
             Path to the file to be sent.
         target_name: str
             Name of the file in the FreeWili.
+        event_cb: Callable | None
+            event callback function. Takes one arguments - a string.
+                def user_callback(msg: str) -> None
+        chunk_size: int
+            Size of the chunks to send in bytes. Typically this should be left at the default value.
 
         Returns:
         -------
             Result[str, str]:
                 Returns Ok(str) if the command was sent successfully, Err(str) if not.
         """
+
+        def _user_cb_func(msg: str) -> None:
+            if callable(event_cb):
+                event_cb(msg)
+
+        start = time.time()
+        self._empty_all()
+        # Adjust the chunk_size
+        if chunk_size == 0:
+            # 32768 seemed to be the fastest from testing.
+            # Below 1024 the transfer was slow and caused firmware resets
+            chunk_size = 32768
         # verify the file exists
         if not isinstance(source_file, pathlib.Path):
             source_file = pathlib.Path(source_file)
         if not source_file.exists():
-            return Err(f"{source_file} does not exist.")
+            msg = f"{source_file} does not exist."
+            _user_cb_func(msg)
+            return Err(msg)
         fsize = source_file.stat().st_size
-        print(fsize)
         # generate the checksum
+        _user_cb_func("Generating checksum...")
         checksum = 0
         with source_file.open("rb") as f:
             while chunk := f.read(65535):
                 checksum = zlib.crc32(chunk, checksum)
         # send the file
-        # self._set_menu_enabled(False)
+        _user_cb_func(f"Requesting file transfer of {source_file} ({fsize} bytes) to {target_name}...")
         cmd = f"x\nf\n{target_name} {fsize} {checksum}"
         self.serial_port.send(cmd, delay_sec=0.0)
-        resp = self._wait_for_response_frame(timeout_sec=1.0)
-        if resp.is_err():
-            # # lets try legacy support
-            # result = self.send_file_legacy(source_file, target_name)
-            # if result.is_ok():
-            #     return Ok(result.value)
-            return Err(resp.err())
-        chunk_size: int = 32768
+        match self._wait_for_response_frame():
+            case Ok(rf):
+                _user_cb_func(f"Firmware response: {rf.response}")
+            case Err(msg):
+                _user_cb_func(msg)
+                return Err(msg)
+            case _:
+                raise RuntimeError("Missing case statement")
         with source_file.open("rb") as f:
-            i = 0
+            total_sent = 0
             while chunk := f.read(chunk_size):
-                i += len(chunk)
+                total_sent += len(chunk)
                 self.serial_port.send(chunk, False, delay_sec=0)
-                print(f"Sent {i}/{fsize}")
-        resp = self._wait_for_response_frame()
-        return resp
+                _user_cb_func(f"Sent {total_sent}/{fsize} bytes of {source_file}. {total_sent / fsize * 100:.2f}%")
+                rf_event = self._wait_for_event_response_frame(0)
+                if rf_event.is_ok():
+                    _user_cb_func(f"Firmware response: {rf_event.ok_value.response}")
+        while (rf_event := self._wait_for_event_response_frame(1)).is_ok():
+            _user_cb_func(f"Firmware response: {rf_event.ok_value.response}")
+        if total_sent != fsize:
+            msg = f"Sent {total_sent} bytes but expected {fsize} bytes."
+            _user_cb_func(msg)
+            return Err(msg)
+        match self._wait_for_response_frame():
+            case Ok(rf):
+                msg = f"Sent {target_name} in {time.time() - start:.2f} seconds: {rf.response}"
+                _user_cb_func(msg)
+                return Ok(msg)
+            case Err(msg):
+                _user_cb_func(msg)
+                return Err(msg)
+            case _:
+                raise RuntimeError("Missing case statement")
 
-    @needs_open(False)
+    @needs_open()
     def get_file(self, source_file: str, destination_path: pathlib.Path, event_cb: Callable | None) -> Result[str, str]:
         """Get a file from the FreeWili.
 
@@ -833,7 +899,7 @@ class FreeWiliSerial:
 
         # send the download command
         start_time = time.time()
-        self._empty_data_queue()
+        self._empty_all()
         _user_cb_func("Sending command...")
         self.serial_port.send(f"x\nu\n{source_file} \n", False, delay_sec=0.1)
         _user_cb_func("Waiting for response frame...")
@@ -875,12 +941,9 @@ class FreeWiliSerial:
                 f.write(data)
                 checksum = zlib.crc32(data, checksum)
                 self.serial_port.data_queue.task_done()
-                try:
-                    rf = self._wait_for_event_response_frame(0.0)
-                    if rf.is_ok():
-                        _user_cb_func(rf.ok_value.response)
-                except queue.Empty:
-                    pass
+                rf_event = self._wait_for_event_response_frame(0)
+                if rf_event.is_ok():
+                    _user_cb_func(f"Firmware response: {rf_event.ok_value.response}")
             _user_cb_func(f"Saved {source_file} {count} bytes to {destination_path}. {count / fsize * 100:.2f}%")
         # b'[u 0DF8213FA48CA2A3 295 success 153624 bytes 1743045997 crc 1]\r\n'
         rf = self._wait_for_response_frame()
@@ -946,7 +1009,7 @@ class FreeWiliSerial:
         #         raise TimeoutError(f"Timed out waiting for data on {self}")
         # time.sleep(delay_sec)
 
-    @needs_open(False)
+    @needs_open()
     def get_app_info(self) -> Result[FreeWiliAppInfo, str]:
         """Detect the processor type of the FreeWili.
 

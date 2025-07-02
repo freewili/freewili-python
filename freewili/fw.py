@@ -321,6 +321,8 @@ class FreeWili:
         source_file: str | pathlib.Path,
         target_name: None | str = None,
         processor: None | FreeWiliProcessorType = None,
+        event_cb: Callable | None = None,
+        chunk_size: int = 0,
     ) -> Result[str, str]:
         """Send a file to the FreeWili.
 
@@ -332,6 +334,11 @@ class FreeWili:
                 Name of the file in the FreeWili. If None, will be determined automatically based on the filename.
             processor: None | FreeWiliProcessorType
                 Processor to upload the file to. If None, will be determined automatically based on the filename.
+            event_cb: Callable | None
+                event callback function. Takes one argument of a string.
+                    def user_callback(msg: str) -> None
+            chunk_size: int
+                Size of the chunks to send in bytes. Typically this should be left at the default value.
 
         Returns:
         -------
@@ -351,7 +358,7 @@ class FreeWili:
 
         match self.get_serial_from(processor):
             case Ok(serial):
-                return serial.send_file(source_file, target_name)
+                return serial.send_file(source_file, target_name, event_cb, chunk_size)
             case Err(msg):
                 return Err(msg)
             case _:
@@ -360,9 +367,9 @@ class FreeWili:
     def get_file(
         self,
         source_file: str,
-        destination_path: pathlib.Path,
+        destination_path: str | pathlib.Path,
         event_cb: Callable | None,
-        processor: FreeWiliProcessorType,
+        processor: FreeWiliProcessorType | None = None,
     ) -> Result[str, str]:
         """Send a file to the FreeWili.
 
@@ -373,8 +380,8 @@ class FreeWili:
             destination_path: pathlib.Path
                 file path to save on the PC
             event_cb: Callable | None
-                event callback function. Takes two arguments of a ResponseFrame and a string.
-                    def user_callback(rf: ResponseFrame | None, msg: str) -> None
+                event callback function. Takes one argument of a string.
+                    def user_callback(msg: str) -> None
             processor: None | FreeWiliProcessorType
                 Processor to upload the file to. If None, will be determined automatically based on the filename.
 
@@ -383,6 +390,12 @@ class FreeWili:
             Result[str, str]:
                 Returns Ok(str) if the command was sent successfully, Err(str) if not.
         """
+        try:
+            # Auto assign values that are None
+            if not processor:
+                processor = FileMap.from_fname(str(source_file)).processor
+        except ValueError as ex:
+            return Err(str(ex))
         match self.get_serial_from(processor):
             case Ok(serial):
                 return serial.get_file(source_file, destination_path, event_cb)
