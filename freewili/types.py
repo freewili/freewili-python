@@ -14,3 +14,14 @@ class FreeWiliProcessorType(enum.Enum):
 
     def __str__(self) -> str:
         return self.name
+
+
+class ButtonColor(enum.Enum):
+    """Free-Wili Physical Button Color."""
+
+    Unknown = enum.auto()
+    White = enum.auto()
+    Yellow = enum.auto()
+    Green = enum.auto()
+    Blue = enum.auto()
+    Red = enum.auto()

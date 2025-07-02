@@ -16,7 +16,7 @@ from result import Err, Ok, Result
 
 from freewili.framing import ResponseFrame
 from freewili.serial_util import FreeWiliSerial, IOMenuCommand
-from freewili.types import FreeWiliProcessorType
+from freewili.types import ButtonColor, FreeWiliProcessorType
 
 # USB Locations:
 # first address = FTDI
@@ -429,7 +429,7 @@ class FreeWili:
             case _:
                 raise RuntimeError("Missing case statement")
 
-    def get_io(self, processor: FreeWiliProcessorType = FreeWiliProcessorType.Main) -> Result[tuple[int], str]:
+    def get_io(self, processor: FreeWiliProcessorType = FreeWiliProcessorType.Main) -> Result[tuple[int, ...], str]:
         """Get all the IO values.
 
         Parameters:
@@ -457,7 +457,7 @@ class FreeWili:
         pwm_freq: None | int = None,
         pwm_duty: None | int = None,
         processor: FreeWiliProcessorType = FreeWiliProcessorType.Main,
-    ) -> Result[ResponseFrame, str]:
+    ) -> Result[str, str]:
         """Set the state of an IO pin to high or low.
 
         Parameters:
@@ -653,7 +653,7 @@ class FreeWili:
 
     def read_all_buttons(
         self, processor: FreeWiliProcessorType = FreeWiliProcessorType.Display
-    ) -> Result[ResponseFrame, str]:
+    ) -> Result[dict[ButtonColor, bool], str]:
         """Read all the buttons.
 
         Arguments:
@@ -663,8 +663,8 @@ class FreeWili:
 
         Returns:
         -------
-            Result[ResponseFrame, str]:
-                Ok(ResponseFrame) if the command was sent successfully, Err(str) if not.
+            Result[dict[ButtonColor, bool], str]:
+                Ok(dict[ButtonColor, bool]) if the command was sent successfully, Err(str) if not.
         """
         match self.get_serial_from(processor):
             case Ok(serial):

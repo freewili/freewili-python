@@ -28,7 +28,7 @@ import serial
 import serial.tools.list_ports
 from result import Err, Ok, Result
 
-from freewili.types import FreeWiliProcessorType
+from freewili.types import ButtonColor, FreeWiliProcessorType
 
 
 class IOMenuCommand(enum.Enum):
@@ -249,9 +249,10 @@ class FreeWiliSerial:
             def wrapper(self: Self, *args: Optional[Any], **kwargs: Optional[Any]) -> Any | None:
                 was_open = self.is_open()
                 self.open().expect("Failed to open")
-                if self.last_menu_option != enable_menu:
-                    self._set_menu_enabled(enable_menu)
-                    self.last_menu_option = enable_menu
+                self._set_menu_enabled(enable_menu)
+                # if self.last_menu_option != enable_menu:
+                #     self._set_menu_enabled(enable_menu)
+                #     self.last_menu_option = enable_menu
                 try:
                     result = func(self, *args, **kwargs)
                     # self._set_menu_enabled(True)
@@ -300,142 +301,6 @@ class FreeWiliSerial:
             if current - start >= timeout_sec:
                 raise TimeoutError(f"Failed to enable menus in {timeout_sec} seconds")
             time.sleep(0.05)
-
-    @needs_open()
-    def set_io(
-        self: Self, io: int, menu_cmd: IOMenuCommand, pwm_freq: None | int = None, pwm_duty: None | int = None
-    ) -> Result[ResponseFrame, str]:
-        """Set the state of an IO pin to high or low.
-
-        Parameters:
-        ----------
-            io : int
-                The number of the IO pin to set.
-            menu_cmd : IOMenuCommand
-                Whether to set the pin to high, low, toggle, or pwm.
-            pwm_freq: None | int
-                PWM frequency in Hertz
-            pwm_duty: None | int
-                PWM Duty cycle (0-100)
-
-        Returns:
-        -------
-            Result[str, str]:
-                Ok(str) if the command was sent successfully, Err(str) if not.
-        """
-        # s) High [25]
-        # l) Low []
-        # t) Toggle
-        # p) PWM IO
-        # u) Get All IOs (hex)
-        self._set_menu_enabled(False)
-        match menu_cmd:
-            case IOMenuCommand.High:
-                cmd = f"o\n{menu_cmd.menu_character}\n{io}\n"
-            case IOMenuCommand.Low:
-                cmd = f"o\n{menu_cmd.menu_character}\n{io}\n"
-            case IOMenuCommand.Toggle:
-                cmd = f"o\n{menu_cmd.menu_character}\n{io}\n"
-            case IOMenuCommand.Pwm:
-                if pwm_freq == -1 or pwm_duty == -1:
-                    return Err("pwm_freq and pwm_duty args need to be specified")
-                cmd = f"o\n{menu_cmd.menu_character}\n{io} {pwm_freq} {pwm_duty}\n"
-            case IOMenuCommand.Toggle:
-                cmd = f"o\n{menu_cmd.menu_character}\n{io}\n"
-            case _:
-                return Err(f"{menu_cmd.name} is not supported.")
-
-        self.serial_port.send(cmd)
-        resp = self._wait_for_response_frame()
-        return resp
-
-    @needs_open()
-    def set_board_leds(self: Self, io: int, red: int, green: int, blue: int) -> Result[ResponseFrame, str]:
-        """Set the GUI RGB LEDs.
-
-        Parameters:
-        ----------
-            io : int
-                The number of the IO pin to set.
-            red : int
-                Red Color 0-255
-            green : int
-                Green Color 0-255
-            blue : int
-                Blue Color 0-255
-
-        Returns:
-        -------
-            Result[ResponseFrame, str]:
-                Ok(ResponseFrame) if the command was sent successfully, Err(str) if not.
-        """
-        # k) GUI Functions
-        # s) Set Board LED [25 100 100 100]
-        cmd = f"g\ns\n{io} {red} {green} {blue}"
-
-        self.serial_port.send(cmd)
-        resp = self._wait_for_response_frame()
-        return resp
-
-    @needs_open()
-    def get_io(self) -> Result[tuple[int], str]:
-        """Get all the IO values.
-
-        Parameters:
-        ----------
-            None
-
-        Returns:
-        -------
-            Result[tuple[int], str]:
-                Ok(tuple[int]) if the command was sent successfully, Err(str) if not.
-        """
-        # We need this so we aren't stuck inside the menu
-        self._set_menu_enabled(False)
-        cmd = f"o\n{IOMenuCommand.Get.menu_character}"
-        self.serial_port.send(cmd)
-        resp = self._wait_for_response_frame()
-        if resp.is_err():
-            return resp
-        resp = resp.unwrap()
-        if not resp.is_ok():
-            return Err(f"Failed to get IO values: {resp.response}")
-        all_io_values = int(resp.response, 16)
-        values = []
-        for i in range(32):
-            io_value = (all_io_values >> i) & 0x1
-            values.append(io_value)
-        return Ok(tuple(values))
-
-    def _write_and_read_bytes_cmd(self, command: str, data: bytes, data_segment_size: int) -> Result[bytes, str]:
-        """Write and read bytes from a command.
-
-        Parameters:
-        ----------
-            command : str
-                The command to send. Should end with a newline.
-            data : bytes
-                The data to write.
-            data_segment_size : int
-                The number of bytes to read/write at a time.
-
-        Returns:
-        -------
-            Result[bytes, str]:
-                Ok(bytes) if the command was sent successfully, Err(str) if not.
-        """
-        raise NotImplementedError("TODO")
-        # hex_reg = re.compile(r"[A-Fa-f0-9]{1,2}")
-        # read_bytes = bytearray()
-        # for i in range(0, len(data), data_segment_size):
-        #     str_hex_data = " ".join(f"{i:02X}" for i in data[i : i + data_segment_size])
-        #     self._serial.write(f"{command}{str_hex_data}\n".encode("ascii"))
-        #     read_data = self._serial.readline().strip()
-        #     # if not read_data:
-        #     #     read_data = self._serial.readline().strip()
-        #     for value in hex_reg.findall(read_data.decode()):
-        #         read_bytes += int(value, 16).to_bytes(1, sys.byteorder)
-        # return Ok(bytes(read_bytes))
 
     def _wait_for_response_frame(self, timeout_sec: float = 6.0) -> Result[ResponseFrame, str]:
         """Wait for a response frame after sending a command.
@@ -524,6 +389,124 @@ class FreeWiliSerial:
         self._empty_event_response_frame_queue()
         self._empty_response_frame_queue()
 
+    def _handle_final_response_frame(self) -> Result[str, str]:
+        match self._wait_for_response_frame():
+            case Ok(rf):
+                if rf.is_ok():
+                    return Ok(rf.response)
+                else:
+                    return Err(rf.response)
+            case Err(msg):
+                return Err(msg)
+            case _:
+                raise RuntimeError("Missing case statement")
+
+    @needs_open()
+    def set_io(
+        self: Self, io: int, menu_cmd: IOMenuCommand, pwm_freq: None | int = None, pwm_duty: None | int = None
+    ) -> Result[str, str]:
+        """Set the state of an IO pin to high or low.
+
+        Parameters:
+        ----------
+            io : int
+                The number of the IO pin to set.
+            menu_cmd : IOMenuCommand
+                Whether to set the pin to high, low, toggle, or pwm.
+            pwm_freq: None | int
+                PWM frequency in Hertz
+            pwm_duty: None | int
+                PWM Duty cycle (0-100)
+
+        Returns:
+        -------
+            Result[str, str]:
+                Ok(str) if the command was sent successfully, Err(str) if not.
+        """
+        # s) High [25]
+        # l) Low []
+        # t) Toggle
+        # p) PWM IO
+        # u) Get All IOs (hex)
+        self._empty_all()
+        match menu_cmd:
+            case IOMenuCommand.High:
+                cmd = f"o\n{menu_cmd.menu_character}\n{io}\n"
+            case IOMenuCommand.Low:
+                cmd = f"o\n{menu_cmd.menu_character}\n{io}\n"
+            case IOMenuCommand.Toggle:
+                cmd = f"o\n{menu_cmd.menu_character}\n{io}\n"
+            case IOMenuCommand.Pwm:
+                if pwm_freq == -1 or pwm_duty == -1:
+                    return Err("pwm_freq and pwm_duty args need to be specified")
+                cmd = f"o\n{menu_cmd.menu_character}\n{io} {pwm_freq} {pwm_duty}\n"
+            case IOMenuCommand.Toggle:
+                cmd = f"o\n{menu_cmd.menu_character}\n{io}\n"
+            case _:
+                return Err(f"{menu_cmd.name} is not supported.")
+
+        self.serial_port.send(cmd)
+        return self._handle_final_response_frame()
+
+    @needs_open()
+    def set_board_leds(self: Self, io: int, red: int, green: int, blue: int) -> Result[str, str]:
+        """Set the GUI RGB LEDs.
+
+        Parameters:
+        ----------
+            io : int
+                The number of the IO pin to set.
+            red : int
+                Red Color 0-255
+            green : int
+                Green Color 0-255
+            blue : int
+                Blue Color 0-255
+
+        Returns:
+        -------
+            Result[str, str]:
+                Ok(str) if the command was sent successfully, Err(str) if not.
+        """
+        # k) GUI Functions
+        # s) Set Board LED [25 100 100 100]
+        cmd = f"g\ns\n{io} {red} {green} {blue}"
+
+        self.serial_port.send(cmd)
+        return self._handle_final_response_frame()
+
+    @needs_open()
+    def get_io(self) -> Result[tuple[int, ...], str]:
+        """Get all the IO values.
+
+        Parameters:
+        ----------
+            None
+
+        Returns:
+        -------
+            Result[tuple[int], str]:
+                Ok(tuple[int]) if the command was sent successfully, Err(str) if not.
+        """
+        self._empty_all()
+        cmd = f"o\n{IOMenuCommand.Get.menu_character}"
+        self.serial_port.send(cmd)
+        match self._wait_for_response_frame():
+            case Ok(rf):
+                print(rf)
+                if not rf.is_ok():
+                    return Err(f"Failed to get IO values: {rf.response}")
+                all_io_values = int(rf.response, 16)
+                values = []
+                for i in range(32):
+                    io_value = (all_io_values >> i) & 0x1
+                    values.append(io_value)
+                return Ok(tuple(values))
+            case Err(msg):
+                return Err(msg)
+            case _:
+                raise RuntimeError("Missing case statement")
+
     @needs_open()
     def read_write_spi_data(self, data: bytes) -> Result[bytes, str]:
         """Read and Write SPI data.
@@ -538,7 +521,7 @@ class FreeWiliSerial:
             Result[bytes, str]:
                 Ok(bytes) if the command was sent successfully, Err(str) if not.
         """
-        return self._write_and_read_bytes_cmd("s\n", data, self.DEFAULT_SEGMENT_SIZE)
+        raise NotImplementedError("TODO")
 
     @needs_open()
     def write_i2c(self, address: int, register: int, data: bytes) -> Result[ResponseFrame, str]:
@@ -582,7 +565,7 @@ class FreeWiliSerial:
             Result[ResponseFrame, str]:
                 Ok(ResponseFrame) if the command was sent successfully, Err(str) if not.
         """
-        self._set_menu_enabled(False)
+        self._empty_all()
         cmd = f"i\nr\n{address:02X} {register:02X} {data_size}"
         self.serial_port.send(cmd)
         resp = self._wait_for_response_frame()
@@ -601,14 +584,14 @@ class FreeWiliSerial:
             Result[ResponseFrame, str]:
                 Ok(ResponseFrame) if the command was sent successfully, Err(str) if not.
         """
-        self._set_menu_enabled(False)
+        self._empty_all()
         cmd = "i\np"
         self.serial_port.send(cmd)
         resp = self._wait_for_response_frame()
         return resp
 
     @needs_open()
-    def show_gui_image(self, fwi_path: str) -> Result[ResponseFrame, str]:
+    def show_gui_image(self, fwi_path: str) -> Result[str, str]:
         """Show a fwi image on the display.
 
         Arguments:
@@ -619,18 +602,17 @@ class FreeWiliSerial:
         Returns:
         -------
             Result[ResponseFrame, str]:
-                Ok(ResponseFrame) if the command was sent successfully, Err(str) if not.
+                Ok(str) if the command was sent successfully, Err(str) if not.
         """
         # k) GUI Functions
         # l) Show FWI Image [pip_boy.fwi]
-        self._set_menu_enabled(False)
+        self._empty_all()
         cmd = f"g\nl\n{fwi_path}"
         self.serial_port.send(cmd)
-        resp = self._wait_for_response_frame()
-        return resp
+        return self._handle_final_response_frame()
 
     @needs_open()
-    def reset_display(self) -> Result[ResponseFrame, str]:
+    def reset_display(self) -> Result[str, str]:
         """Reset the display back to the main menu.
 
         Arguments:
@@ -639,19 +621,18 @@ class FreeWiliSerial:
 
         Returns:
         -------
-            Result[ResponseFrame, str]:
-                Ok(ResponseFrame) if the command was sent successfully, Err(str) if not.
+            Result[str, str]:
+                Ok(str) if the command was sent successfully, Err(str) if not.
         """
         # k) GUI Functions
         # t) Reset Display
-        self._set_menu_enabled(False)
+        self._empty_all()
         cmd = "g\nt"
         self.serial_port.send(cmd)
-        resp = self._wait_for_response_frame()
-        return resp
+        return self._handle_final_response_frame()
 
     @needs_open()
-    def show_text_display(self, text: str) -> Result[ResponseFrame, str]:
+    def show_text_display(self, text: str) -> Result[str, str]:
         """Show text on the display.
 
         Arguments:
@@ -661,19 +642,18 @@ class FreeWiliSerial:
 
         Returns:
         -------
-            Result[ResponseFrame, str]:
-                Ok(ResponseFrame) if the command was sent successfully, Err(str) if not.
+            Result[str, str]:
+                Ok(str) if the command was sent successfully, Err(str) if not.
         """
         # k) GUI Functions
         # p) Show Text Display
-        self._set_menu_enabled(False)
+        self._empty_all()
         cmd = f"g\np\n{text}"
         self.serial_port.send(cmd)
-        resp = self._wait_for_response_frame()
-        return resp
+        return self._handle_final_response_frame()
 
     @needs_open()
-    def read_all_buttons(self) -> Result[ResponseFrame, str]:
+    def read_all_buttons(self) -> Result[dict[ButtonColor, bool], str]:
         """Read all the buttons.
 
         Arguments:
@@ -682,16 +662,32 @@ class FreeWiliSerial:
 
         Returns:
         -------
-            Result[ResponseFrame, str]:
-                Ok(ResponseFrame) if the command was sent successfully, Err(str) if not.
+            Result[dict[ButtonColor, bool], str]:
+                Ok(dict[ButtonColor, bool]) if the command was sent successfully, Err(str) if not.
         """
         # k) GUI Functions
         # u) Read All Buttons
-        self._set_menu_enabled(False)
+        button_colors = [ButtonColor.White, ButtonColor.Yellow, ButtonColor.Green, ButtonColor.Blue, ButtonColor.Red]
+        self._empty_all()
         cmd = "g\nu"
         self.serial_port.send(cmd)
-        resp = self._wait_for_response_frame()
-        return resp
+        match self._wait_for_response_frame():
+            case Ok(rf):
+                if not rf.is_ok():
+                    return Err(rf.response)
+                button_responses = {}
+                match rf.response_as_bytes():
+                    case Ok(resp):
+                        for i, button_state in enumerate(resp):
+                            button_responses[button_colors[i]] = button_state != 0
+                        return Ok(button_responses)
+                    case Err(msg):
+                        return Err(msg)
+            case Err(msg):
+                return Err(msg)
+            case _:
+                raise RuntimeError("Missing case statement")
+        return self._handle_final_response_frame()
 
     @needs_open()
     def write_radio(self, data: bytes) -> Result[bytes, str]:
@@ -707,7 +703,7 @@ class FreeWiliSerial:
             Result[bytes, str]:
                 Ok(bytes) if the command was sent successfully, Err(str) if not.
         """
-        return self._write_and_read_bytes_cmd("t\n", data, self.DEFAULT_SEGMENT_SIZE)
+        raise NotImplementedError("TODO")
 
     @needs_open()
     def read_radio(self, data: bytes) -> Result[bytes, str]:
@@ -723,7 +719,7 @@ class FreeWiliSerial:
             Result[bytes, str]:
                 Ok(bytes) if the command was sent successfully, Err(str) if not.
         """
-        return self._write_and_read_bytes_cmd("g\n", data, self.DEFAULT_SEGMENT_SIZE)
+        raise NotImplementedError("TODO")
 
     @needs_open()
     def write_uart(self, data: bytes) -> Result[bytes, str]:
@@ -739,7 +735,7 @@ class FreeWiliSerial:
             Result[bytes, str]:
                 Ok(bytes) if the command was sent successfully, Err(str) if not.
         """
-        return self._write_and_read_bytes_cmd("u\n", data, self.DEFAULT_SEGMENT_SIZE)
+        raise NotImplementedError("TODO")
 
     @needs_open()
     def enable_stream(self, enable: bool) -> None:
@@ -760,7 +756,7 @@ class FreeWiliSerial:
             Result[str, str]:
                 Ok(str) if the command was sent successfully, Err(str) if not.
         """
-        self._set_menu_enabled(False)
+        self._empty_all()
         cmd = f"w\n{file_name}"
         self.serial_port.send(cmd)
         resp = self._wait_for_response_frame()
@@ -780,7 +776,7 @@ class FreeWiliSerial:
             Result[str, str]:
                 Ok(str) if the command was sent successfully, Err(str) if not.
         """
-        self._set_menu_enabled(False)
+        self._empty_all()
         cmd = f"m\n{file_name}"
         self.serial_port.send(cmd)
         resp = self._wait_for_response_frame()

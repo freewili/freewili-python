@@ -22,7 +22,7 @@ ret = device.send_file("tests/assets/pip_boy.fwi", "/images/pip_boy.fwi", None, 
 print()
 print(ret)
 print("=" * 80)
-ret = device.get_file("/images/pip_boy.fwi", "pip_boy_downloaded.fwi", get_event_cb).expect("Failed to get file.")
+ret = device.get_file("/images/pip_boy.fwi", "pip_boy_downloaded.fwi", None, get_event_cb).expect("Failed to get file.")
 print()
 print(ret)
 device.close()
