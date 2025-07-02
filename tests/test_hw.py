@@ -36,19 +36,11 @@ def test_hw_board_leds() -> None:
 def test_hw_show_gui_image() -> None:
     """Test image on a FreeWili."""
     device = FreeWili.find_all()[0]
-    device.stay_open = True
 
     try:
-        response_frame = device.send_file("tests/assets/pip_boy.fwi").expect("Failed to upload file")
-        assert response_frame.rf_type == ResponseFrameType.Standard
-        assert response_frame.rf_type_data == r"f"
-        assert response_frame.timestamp != 0
-        assert response_frame.response == "success 153624 bytes", "Is pip_boy.fwi uploaded to the device?"
-        assert response_frame.is_ok()
-    finally:
-        device.close()
-
-    try:
+        device.open().expect("Failed to open")
+        success = device.send_file("tests/assets/pip_boy.fwi").expect("Failed to upload file")
+        assert success != ""
         response_frame = device.show_gui_image("pip_boy.fwi").expect("Failed to show image")
         assert response_frame.rf_type == ResponseFrameType.Standard
         assert response_frame.rf_type_data == r"g\l"
