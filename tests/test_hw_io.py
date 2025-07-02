@@ -3,7 +3,7 @@
 import pytest
 
 from freewili import FreeWili
-from freewili.serial_util import IOMenuCommand
+from freewili.types import IOMenuCommand
 
 
 @pytest.mark.skipif("len(FreeWili.find_all()) == 0")

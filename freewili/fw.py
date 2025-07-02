@@ -15,8 +15,8 @@ import pyfwfinder as fwf
 from result import Err, Ok, Result
 
 from freewili.framing import ResponseFrame
-from freewili.serial_util import FreeWiliSerial, IOMenuCommand
-from freewili.types import ButtonColor, FreeWiliProcessorType
+from freewili.serial_util import FreeWiliSerial
+from freewili.types import ButtonColor, FreeWiliProcessorType, IOMenuCommand
 
 # USB Locations:
 # first address = FTDI
