@@ -274,12 +274,11 @@ def main() -> None:
                     if io_args_length >= 4:
                         print(f"PWM Frequency: {pwm_freq_hz}Hz {pwm_duty_cycle}%", end="")
                     print()
-                    resp = device.set_io(io_pin, menu_cmd, pwm_freq_hz, pwm_duty_cycle).unwrap_or(
-                        "Failed to configure IO pin"
-                    )
-                    if not resp.is_ok():
-                        exit_with_error(f"Failed to configure IO pin: {resp.response}")
-                    print(f"Successfully configured pin {io_pin} {menu_cmd.name}")
+                    match device.set_io(io_pin, menu_cmd, pwm_freq_hz, pwm_duty_cycle):
+                        case Ok(msg):
+                            print(f"Successfully configured pin {io_pin} {menu_cmd.name}: {msg}")
+                        case Err(msg):
+                            exit_with_error("Failed to configure IO pin: {msg}")
                 case Err(msg):
                     exit_with_error(msg)
     if args.led:
