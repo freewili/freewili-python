@@ -15,3 +15,5 @@ print(device.set_io(25, IOMenuCommand.Low).expect("Failed to set IO low"))
 print(device.set_io(25, IOMenuCommand.Toggle).expect("Failed to toggle IO"))
 # PWM IO 25
 print(device.set_io(25, IOMenuCommand.Pwm, 10, 50).expect("Failed to toggle IO"))
+
+device.close()

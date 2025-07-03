@@ -290,13 +290,12 @@ def main() -> None:
             case Ok(device):
                 print(f"Setting LED {led_num} to RGB: {red}, {green}, {blue}...")
                 match device.set_board_leds(led_num, red, green, blue):
-                    case Ok(resp):
-                        if not resp.is_ok():
-                            exit_with_error(f"Failed to set LED {resp.response}")
-                        else:
-                            print(f"Successfully set LED {led_num}")
+                    case Ok(msg):
+                        print(f"Successfully set LED {led_num}: {msg}")
                     case Err(msg):
                         exit_with_error(msg)
+                    case _:
+                        raise RuntimeError("Missing case statement")
             case Err(msg):
                 exit_with_error(msg)
     if args.gui_image:
