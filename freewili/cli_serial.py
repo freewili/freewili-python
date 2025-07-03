@@ -304,13 +304,10 @@ def main() -> None:
             case Ok(device):
                 print(f"Showing Image {value}...")
                 match device.show_gui_image(value):
-                    case Ok(resp):
-                        if not resp.is_ok():
-                            exit_with_error(f"Failed to show Image {resp.response}")
-                        else:
-                            print(f"Successfully showing {value}")
+                    case Ok(msg):
+                        print(f"Successfully showing {value}: {msg}")
                     case Err(msg):
-                        exit_with_error(msg)
+                        exit_with_error(f"Failed to show Image {msg}")
             case Err(msg):
                 exit_with_error(msg)
     if args.gui_text:
@@ -319,13 +316,10 @@ def main() -> None:
             case Ok(device):
                 print(f"Showing text {value}...")
                 match device.show_text_display(value):
-                    case Ok(resp):
-                        if not resp.is_ok():
-                            exit_with_error(f"Failed to show text {resp.response}")
-                        else:
-                            print(f"Successfully showing {value}")
+                    case Ok(msg):
+                        print(f"Successfully showing {value}: {msg}")
                     case Err(msg):
-                        exit_with_error(msg)
+                        exit_with_error(f"Failed to show text {msg}")
             case Err(msg):
                 exit_with_error(msg)
     if args.read_buttons:
@@ -333,13 +327,14 @@ def main() -> None:
             case Ok(device):
                 print("Getting button values...")
                 match device.read_all_buttons():
-                    case Ok(resp):
-                        if not resp.is_ok():
-                            exit_with_error(f"Failed to show text {resp.response}")
-                        else:
-                            print(resp.response)
+                    case Ok(buttons):
+                        for button_color, button_state in buttons.items():
+                            msg = f"\N{WHITE HEAVY CHECK MARK} {button_color.name} Pressed"
+                            if button_state == 0:
+                                msg = f"\N{CROSS MARK} {button_color.name} Released"
+                            print(msg)
                     case Err(msg):
-                        exit_with_error(msg)
+                        exit_with_error(f"Failed to get button values {msg}")
             case Err(msg):
                 exit_with_error(msg)
     if args.reset_display:
@@ -347,11 +342,10 @@ def main() -> None:
             case Ok(device):
                 print("Resetting display...")
                 match device.reset_display():
-                    case Ok(resp):
-                        if not resp.is_ok():
-                            exit_with_error(f"Failed to reset display {resp.response}")
-                        else:
-                            print(resp.response)
+                    case Ok(msg):
+                        print(f"Successfully reset display: {msg}")
+                    case Err(msg):
+                        exit_with_error(f"Failed to reset display {msg}")
                     case Err(msg):
                         exit_with_error(msg)
             case Err(msg):

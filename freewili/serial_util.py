@@ -420,7 +420,6 @@ class FreeWiliSerial:
         self.serial_port.send(cmd)
         match self._wait_for_response_frame():
             case Ok(rf):
-                print(rf)
                 if not rf.is_ok():
                     return Err(f"Failed to get IO values: {rf.response}")
                 all_io_values = int(rf.response, 16)
