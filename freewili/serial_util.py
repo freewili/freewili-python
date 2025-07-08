@@ -498,8 +498,8 @@ class FreeWiliSerial:
         return resp
 
     @needs_open()
-    def poll_i2c(self) -> Result[ResponseFrame, str]:
-        """Run a script on the FreeWili.
+    def poll_i2c(self) -> Result[tuple[int, ...], str]:
+        """Poll I2C addresses connected to the FreeWili.
 
         Arguments:
         ----------
@@ -507,14 +507,26 @@ class FreeWiliSerial:
 
         Returns:
         -------
-            Result[ResponseFrame, str]:
-                Ok(ResponseFrame) if the command was sent successfully, Err(str) if not.
+            Result[tuple[int, ...], str]:
+                Ok(tuple[int, ...]) if the command was sent successfully, Err(str) if not.
         """
         self._empty_all()
         cmd = "i\np"
         self.serial_port.send(cmd)
-        resp = self._wait_for_response_frame()
-        return resp
+
+        match self._wait_for_response_frame():
+            case Ok(rf):
+                if not rf.is_ok():
+                    return Err(f"Failed to poll I2C addresses: {rf.response}")
+                match rf.response_as_bytes():
+                    case Ok(response):
+                        return Ok(tuple(response[1:]))
+                    case Err(msg):
+                        return Err(msg)
+            case Err(msg):
+                return Err(msg)
+            case _:
+                raise RuntimeError("Missing case statement")
 
     @needs_open()
     def show_gui_image(self, fwi_path: str) -> Result[str, str]:

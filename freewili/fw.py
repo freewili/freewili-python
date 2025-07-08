@@ -580,8 +580,8 @@ class FreeWili:
             case _:
                 raise RuntimeError("Missing case statement")
 
-    def poll_i2c(self, processor: FreeWiliProcessorType = FreeWiliProcessorType.Main) -> Result[ResponseFrame, str]:
-        """Write I2C data.
+    def poll_i2c(self, processor: FreeWiliProcessorType = FreeWiliProcessorType.Main) -> Result[tuple[int, ...], str]:
+        """Poll I2C data.
 
         Parameters:
         ----------
@@ -590,8 +590,8 @@ class FreeWili:
 
         Returns:
         -------
-            Result[ResponseFrame, str]:
-                Ok(ResponseFrame) if the command was sent successfully, Err(str) if not.
+            Result[tuple[int, ...], str]:
+                Ok(tuple[int, ...]) if the command was sent successfully, Err(str) if not.
         """
         match self.get_serial_from(processor):
             case Ok(serial):

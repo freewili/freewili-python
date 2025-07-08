@@ -6,6 +6,7 @@ MMC5983MA Magnetometer I2C Address: 0x30
 """
 
 import enum
+from time import time
 
 from result import Err, Ok
 
@@ -191,21 +192,19 @@ match FreeWili.find_first():
 try:
     # Poll the I2C to make sure we can read the breakout board
     print("Polling I2C...")
-    resp = device.poll_i2c().expect("Failed to poll i2c")
-    addresses = resp.response_as_bytes().expect("Failed to get response bytes")
-    if addresses != bytes([2, MMC5983MA_ADDR, ISM330DHCX_ADDR]):
-        print(f"Expected addresses on I2C are incorrect, got {list(addresses)}!")
+    addresses = device.poll_i2c().expect("Failed to poll I2C")
+    if MMC5983MA_ADDR not in addresses or ISM330DHCX_ADDR not in addresses:
+        print(f"Expected I2C addresses {MMC5983MA_ADDR} and {ISM330DHCX_ADDR} not found. Got {addresses}!")
         exit(1)
 
-    first_ts = resp.timestamp
-    print(resp.timestamp_as_datetime().expect("Failed to convert to datetime"))
+    start = time()
     while True:
         try:
             temp_c, ts = get_mmc5983ma_temperature(device)
             temp_f = temp_c * 1.8 + 32
-            print(f"[{ts - first_ts}] Temperature: {temp_c:.2f}C ({temp_f:.2f}F)")
+            print(f"[{time() - start:.3f}] Temperature: {temp_c:.1f}C ({temp_f:.1f}F)")
             magnetic_data, ts = get_mmc5983ma_magnetic_sensor(device)
-            print(f"[{ts - first_ts}] Magnetic Field: {magnetic_data}")
+            print(f"[{time() - start:.3f}] Magnetic Field: {magnetic_data}")
         except KeyboardInterrupt:
             break
 finally:
