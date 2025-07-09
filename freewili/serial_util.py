@@ -450,7 +450,7 @@ class FreeWiliSerial:
         raise NotImplementedError("TODO")
 
     @needs_open()
-    def write_i2c(self, address: int, register: int, data: bytes) -> Result[ResponseFrame, str]:
+    def write_i2c(self, address: int, register: int, data: bytes) -> Result[str, str]:
         """Write I2C data.
 
         Parameters:
@@ -464,17 +464,25 @@ class FreeWiliSerial:
 
         Returns:
         -------
-            Result[ResponseFrame, str]:
-                Ok(ResponseFrame) if the command was sent successfully, Err(str) if not.
+            Result[str, str]:
+                Ok(str) if the command was sent successfully, Err(str) if not.
+                The str is the response in the Response Frame from the FreeWili.
         """
         data_bytes = " ".join(f"{i:02X}" for i in data)
         cmd = f"i\nw\n{address:02X} {register:02X} {data_bytes}"
         self.serial_port.send(cmd)
-        resp = self._wait_for_response_frame()
-        return resp
+        match self._wait_for_response_frame():
+            case Ok(rf):
+                if not rf.is_ok():
+                    return Err(f"Failed to write to I2C address {address:02X}: {rf.response}")
+                return Ok(rf.response)
+            case Err(msg):
+                return Err(msg)
+            case _:
+                raise RuntimeError("Missing case statement")
 
     @needs_open()
-    def read_i2c(self, address: int, register: int, data_size: int) -> Result[ResponseFrame, str]:
+    def read_i2c(self, address: int, register: int, data_size: int) -> Result[bytes, str]:
         """Read I2C data.
 
         Parameters:
@@ -488,14 +496,25 @@ class FreeWiliSerial:
 
         Returns:
         -------
-            Result[ResponseFrame, str]:
-                Ok(ResponseFrame) if the command was sent successfully, Err(str) if not.
+            Result[bytes, str]:
+                Ok(bytes) if the command was sent successfully, Err(str) if not.
         """
         self._empty_all()
         cmd = f"i\nr\n{address:02X} {register:02X} {data_size}"
         self.serial_port.send(cmd)
-        resp = self._wait_for_response_frame()
-        return resp
+        match self._wait_for_response_frame():
+            case Ok(rf):
+                if not rf.is_ok():
+                    return Err(f"Failed to read I2C addresses: {rf.response}")
+                match rf.response_as_bytes():
+                    case Ok(response):
+                        return Ok(response)
+                    case Err(msg):
+                        return Err(msg)
+            case Err(msg):
+                return Err(msg)
+            case _:
+                raise RuntimeError("Missing case statement")
 
     @needs_open()
     def poll_i2c(self) -> Result[tuple[int, ...], str]:
@@ -509,6 +528,7 @@ class FreeWiliSerial:
         -------
             Result[tuple[int, ...], str]:
                 Ok(tuple[int, ...]) if the command was sent successfully, Err(str) if not.
+                The tuple is a list of I2C addresses found.
         """
         self._empty_all()
         cmd = "i\np"
