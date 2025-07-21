@@ -680,17 +680,90 @@ class FreeWiliSerial:
         self.serial_port.send(cmd)
         return self._handle_final_response_frame()
 
-    def process_events(self) -> None:
+    @needs_open()
+    def enable_button_events(self, enable: bool, interval_ms: int | None) -> Result[str, str]:
+        """Enable or disable button events.
+
+        Arguments:
+        ----------
+            enable: bool
+                Whether to enable or disable button events.
+            interval_ms: int | None
+                The interval in milliseconds for button events. If None, the default value will be used.
+
+        Returns:
+        -------
+            Result[str, str]:
+                Ok(str) if the command was sent successfully, Err(str) if not.
+        """
+        if interval_ms is None:
+            # Use the default value
+            interval_ms = 100
+        self._empty_all()
+        cmd = f"g\no\n{0 if not enable else int(interval_ms)}"
+        self.serial_port.send(cmd)
+        return self._handle_final_response_frame()
+
+    @needs_open()
+    def enable_ir_events(self, enable: bool) -> Result[str, str]:
+        """Enable or disable IR events.
+
+        Arguments:
+        ----------
+            enable: bool
+                Whether to enable or disable IR events.
+
+        Returns:
+        -------
+            Result[str, str]:
+                Ok(str) if the command was sent successfully, Err(str) if not.
+        """
+        self._empty_all()
+        cmd = f"i\no\n{0 if not enable else 1}"
+        self.serial_port.send(cmd)
+        return self._handle_final_response_frame()
+
+    @needs_open()
+    def enable_battery_events(self, enable: bool) -> Result[str, str]:
+        """Enable or disable battery events.
+
+        Arguments:
+        ----------
+            enable: bool
+                Whether to enable or disable battery events.
+
+        Returns:
+        -------
+            Result[str, str]:
+                Ok(str) if the command was sent successfully, Err(str) if not.
+        """
+        self._empty_all()
+        cmd = f"s\no\n{0 if not enable else 1}"
+        self.serial_port.send(cmd)
+        return self._handle_final_response_frame()
+
+    def process_events(self, delay_sec: float | None = None) -> None:
         """Process events from the FreeWili.
+
+        Parameters:
+        -----------
+            delay_sec: float | None
+                The delay in seconds to wait before processing the next event. None uses the default value.
 
         This method will read events from the serial port and call the user event callback if set.
         """
         if not callable(self.user_event_callback):
             return
+        if delay_sec is None:
+            delay_sec = 0.001  # Default to 1 millisecond
         for k in self.serial_port.rf_events.keys():
             frames = self.serial_port.rf_events.pop(k)
             for frame in frames:
-                self.user_event_callback(EventType.Unknown, frame, frame.data)
+                event_type: EventType = EventType.from_frame(frame)
+                data_type = event_type.get_data_type()
+                data = data_type.from_string(frame.response)
+                self.user_event_callback(event_type, frame, data)
+        time.sleep(delay_sec)
 
     @needs_open()
     def write_radio(self, data: bytes) -> Result[bytes, str]:

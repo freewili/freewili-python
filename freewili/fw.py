@@ -61,6 +61,13 @@ class FreeWili:
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__}: {self.device.serial}>"
 
+    def __enter__(self) -> Self:
+        self.open().expect("Failed to open FreeWili")
+        return self
+
+    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
+        self.close()
+
     def set_event_callback(self, event_cb: None | Callable[[EventType, ResponseFrame, Any], None]) -> None:
         """Set the event callback for the FreeWili.
 
@@ -739,6 +746,90 @@ class FreeWili:
         match self.get_serial_from(processor):
             case Ok(serial):
                 return serial.enable_accel_events(enable, interval_ms)
+            case Err(msg):
+                return Err(msg)
+            case _:
+                raise RuntimeError("Missing case statement")
+
+    def enable_button_events(
+        self,
+        enable: bool,
+        interval_ms: int | None = None,
+        processor: FreeWiliProcessorType = FreeWiliProcessorType.Display,
+    ) -> Result[str, str]:
+        """Enable or disable acceleration events.
+
+        Arguments:
+        ----------
+            enable: bool
+                Whether to enable or disable acceleration events.
+            interval_ms: int | None
+                The interval in milliseconds for accelerometer events. If None, the default value will be used.
+            processor: FreeWiliProcessorType
+                Processor to use.
+
+        Returns:
+        ---------
+            Result[ResponseFrame, str]:
+                Ok(str) if the command was sent successfully, Err(str) if not.
+        """
+        match self.get_serial_from(processor):
+            case Ok(serial):
+                return serial.enable_button_events(enable, interval_ms)
+            case Err(msg):
+                return Err(msg)
+            case _:
+                raise RuntimeError("Missing case statement")
+
+    def enable_ir_events(
+        self,
+        enable: bool,
+        processor: FreeWiliProcessorType = FreeWiliProcessorType.Display,
+    ) -> Result[str, str]:
+        """Enable or disable infrared events.
+
+        Arguments:
+        ----------
+            enable: bool
+                Whether to enable or disable infrared events.
+            processor: FreeWiliProcessorType
+                Processor to use.
+
+        Returns:
+        ---------
+            Result[ResponseFrame, str]:
+                Ok(str) if the command was sent successfully, Err(str) if not.
+        """
+        match self.get_serial_from(processor):
+            case Ok(serial):
+                return serial.enable_ir_events(enable)
+            case Err(msg):
+                return Err(msg)
+            case _:
+                raise RuntimeError("Missing case statement")
+
+    def enable_battery_events(
+        self,
+        enable: bool,
+        processor: FreeWiliProcessorType = FreeWiliProcessorType.Display,
+    ) -> Result[str, str]:
+        """Enable or disable battery events.
+
+        Arguments:
+        ----------
+            enable: bool
+                Whether to enable or disable battery events.
+            processor: FreeWiliProcessorType
+                Processor to use.
+
+        Returns:
+        ---------
+            Result[ResponseFrame, str]:
+                Ok(str) if the command was sent successfully, Err(str) if not.
+        """
+        match self.get_serial_from(processor):
+            case Ok(serial):
+                return serial.enable_battery_events(enable)
             case Err(msg):
                 return Err(msg)
             case _:
