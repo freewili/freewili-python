@@ -27,7 +27,7 @@ import serial
 import serial.tools.list_ports
 from result import Err, Ok, Result
 
-from freewili.types import ButtonColor, FreeWiliProcessorType, IOMenuCommand
+from freewili.types import ButtonColor, EventType, FreeWiliProcessorType, IOMenuCommand
 
 
 @dataclasses.dataclass
@@ -59,10 +59,7 @@ class FreeWiliSerial:
     def __init__(self, port: str, stay_open: bool = False, name: str = "") -> None:
         self.serial_port = SerialPort(port, 1000000, name)
         self.last_menu_option: None | bool = None
-        # self.port = port
-        # self._serial: serial.Serial = serial.Serial(None, timeout=1.0, exclusive=True)
-        # # Initialize to disable menus
-        # self._stay_open: bool = stay_open
+        self.user_event_callback: None | Callable[[EventType, ResponseFrame, Any], None] = None
 
     def __repr__(self) -> str:
         return f"<{str(self)}>"
@@ -82,6 +79,18 @@ class FreeWiliSerial:
     @stay_open.setter
     def stay_open(self, value: bool) -> None:
         self._stay_open = value
+
+    def set_event_callback(self, event_cb: None | Callable[[EventType, ResponseFrame, Any], None]) -> None:
+        """Set the event callback for the FreeWili.
+
+        Parameters:
+        ----------
+            event_cb: Callable[[EventType, ResponseFrame, Any], None]:
+                The callback to call when an event is received.
+                The first argument is the EventType, the second is the ResponseFrame,
+                and the third is any additional data passed to the callback.
+        """
+        self.user_event_callback = event_cb
 
     def open(self, block: bool = True, timeout_sec: float = 6.0) -> Result[None, str]:
         """Open the serial port.
@@ -646,6 +655,42 @@ class FreeWiliSerial:
             case _:
                 raise RuntimeError("Missing case statement")
         return self._handle_final_response_frame()
+
+    @needs_open()
+    def enable_accel_events(self, enable: bool, interval_ms: int | None) -> Result[str, str]:
+        """Enable or disable accelerometer events.
+
+        Arguments:
+        ----------
+            enable: bool
+                Whether to enable or disable accelerometer events.
+            interval_ms: int | None
+                The interval in milliseconds for accelerometer events. If None, the default value will be used.
+
+        Returns:
+        -------
+            Result[str, str]:
+                Ok(str) if the command was sent successfully, Err(str) if not.
+        """
+        if interval_ms is None:
+            # Use the default value
+            interval_ms = 100
+        self._empty_all()
+        cmd = f"r\no\n{0 if not enable else int(interval_ms)}"
+        self.serial_port.send(cmd)
+        return self._handle_final_response_frame()
+
+    def process_events(self) -> None:
+        """Process events from the FreeWili.
+
+        This method will read events from the serial port and call the user event callback if set.
+        """
+        if not callable(self.user_event_callback):
+            return
+        for k in self.serial_port.rf_events.keys():
+            frames = self.serial_port.rf_events.pop(k)
+            for frame in frames:
+                self.user_event_callback(EventType.Unknown, frame, frame.data)
 
     @needs_open()
     def write_radio(self, data: bytes) -> Result[bytes, str]:

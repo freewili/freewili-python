@@ -2,6 +2,7 @@
 
 import enum
 import sys
+from dataclasses import dataclass
 
 if sys.version_info >= (3, 11):
     from typing import Self
@@ -31,6 +32,37 @@ class ButtonColor(enum.Enum):
     Green = enum.auto()
     Blue = enum.auto()
     Red = enum.auto()
+
+
+@dataclass(frozen=True)
+class AccelData:
+    """Accelerometer event data from Free-Wili Display."""
+
+    # [*accel 0DFEFB5DB4E34E9B 20 2g 64 -768 16448 29 84 4 1]
+    # Force
+    g: float
+    # X acceleration
+    x: float
+    # Y acceleration
+    y: float
+    # Z acceleration
+    z: float
+    # Temperature in Celsius
+    temp_c: float
+    # Temp in Fahrenheit
+    temp_f: float
+
+
+class EventType(enum.Enum):
+    """Free-Wili Event Type."""
+
+    Unknown = enum.auto()
+    GPIO = enum.auto()
+    File = enum.auto()
+    Accel = enum.auto()
+
+    def __str__(self) -> str:
+        return self.name
 
 
 class IOMenuCommand(enum.Enum):
