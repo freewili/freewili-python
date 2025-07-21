@@ -1,6 +1,6 @@
 """Test code for freewili.types module."""
 
-from freewili.serial_util import FreeWiliProcessorType
+from freewili.fw_serial import FreeWiliProcessorType
 
 
 def test_processor_type() -> None:

@@ -15,7 +15,7 @@ import pyfwfinder as fwf
 from result import Err, Ok, Result
 
 from freewili.framing import ResponseFrame
-from freewili.serial_util import FreeWiliSerial
+from freewili.fw_serial import FreeWiliSerial
 from freewili.types import AccelData, ButtonColor, EventType, FreeWiliProcessorType, IOMenuCommand
 
 # USB Locations:

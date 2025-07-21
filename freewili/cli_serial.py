@@ -13,7 +13,7 @@ from result import Err, Ok
 from freewili import FreeWili
 from freewili.cli import exit_with_error, get_device
 from freewili.fw import GPIO_MAP
-from freewili.serial_util import FreeWiliProcessorType, FreeWiliSerial, IOMenuCommand
+from freewili.fw_serial import FreeWiliProcessorType, FreeWiliSerial, IOMenuCommand
 
 
 def main() -> None:

@@ -100,7 +100,7 @@ class SerialPort(threading.Thread):
     """Read/Write data to a serial port."""
 
     def __init__(self, port: str, baudrate: int = 1000000, name: str = ""):
-        self._debug_enabled = True
+        self._debug_enabled = False
         self._name = name
         super().__init__(daemon=True, name=f"Thread-SerialPort-{port}-{name}")
         self._port = port
