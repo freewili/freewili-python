@@ -823,6 +823,25 @@ class FreeWiliSerial:
         self.serial_port.send(cmd)
         return self._handle_final_response_frame()
 
+    @needs_open()
+    def enable_audio_events(self, enable: bool) -> Result[str, str]:
+        """Enable or disable audio events.
+
+        Arguments:
+        ----------
+            enable: bool
+                Whether to enable or disable audio events.
+
+        Returns:
+        -------
+            Result[str, str]:
+                Ok(str) if the command was sent successfully, Err(str) if not.
+        """
+        self._empty_all()
+        cmd = f"a\ns\n{0 if not enable else 1}"
+        self.serial_port.send(cmd)
+        return self._handle_final_response_frame()
+
     def process_events(self, delay_sec: float | None = None) -> None:
         """Process events from the FreeWili.
 
@@ -985,6 +1004,106 @@ class FreeWiliSerial:
         assert isinstance(data, bytes), "data must be bytes"
         data_int: int = int.from_bytes(data[:4], "big")
         cmd = f"i\na\n{data_int}"
+        self.serial_port.send(cmd)
+        return self._handle_final_response_frame()
+
+    @needs_open()
+    def play_audio_file(self, file_name: str) -> Result[str, str]:
+        """Play an audio file on the FreeWili.
+
+        Arguments:
+        ----------
+        file_name: str
+            Name of the file in the FreeWili. 8.3 filename limit exists as of V12
+
+        Returns:
+        -------
+            Result[str, str]:
+                Ok(str) if the command was sent successfully, Err(str) if not.
+        """
+        self._empty_all()
+        cmd = f"a\nf\n{file_name}"
+        self.serial_port.send(cmd)
+        return self._handle_final_response_frame()
+
+    @needs_open()
+    def play_audio_asset(self, asset_value: str | int) -> Result[str, str]:
+        """Play an audio asset on the FreeWili.
+
+        Arguments:
+        ----------
+        asset_value: str | int
+            The asset value to play.
+
+        Returns:
+        -------
+            Result[str, str]:
+                Ok(str) if the command was sent successfully, Err(str) if not.
+        """
+        self._empty_all()
+        cmd = f"a\na\n{asset_value}"
+        self.serial_port.send(cmd)
+        return self._handle_final_response_frame()
+
+    @needs_open()
+    def play_audio_number_as_speech(self, value: int) -> Result[str, str]:
+        """Play an audio number as speech on the FreeWili.
+
+        Arguments:
+        ----------
+        value: int
+            The audio number to play.
+
+        Returns:
+        -------
+            Result[str, str]:
+                Ok(str) if the command was sent successfully, Err(str) if not.
+        """
+        self._empty_all()
+        cmd = f"a\nn\n{value}"
+        self.serial_port.send(cmd)
+        return self._handle_final_response_frame()
+
+    @needs_open()
+    def play_audio_tone(self, frequency_hz: int, duration_sec: float, amplitude: float) -> Result[str, str]:
+        """Play an audio tone on the FreeWili.
+
+        Arguments:
+        ----------
+        frequency_hz: int
+            The frequency of the tone in Hertz.
+        duration_sec: float
+            The duration of the tone in seconds.
+        amplitude: float
+            The amplitude of the tone (0.0 to 1.0).
+
+        Returns:
+        -------
+            Result[str, str]:
+                Ok(str) if the command was sent successfully, Err(str) if not.
+        """
+        self._empty_all()
+        assert isinstance(frequency_hz, int)
+        cmd = f"a\nt\n{frequency_hz}\n{duration_sec:.2f}\n{amplitude:.2f}"
+        self.serial_port.send(cmd)
+        return self._handle_final_response_frame()
+
+    @needs_open()
+    def record_audio(self, file_name: str) -> Result[str, str]:
+        """Record audio on the FreeWili.
+
+        Arguments:
+        ----------
+        file_name: str
+            Name of the file in the FreeWili. (ie. "/sounds/test.wav")
+
+        Returns:
+        -------
+            Result[str, str]:
+                Ok(str) if the command was sent successfully, Err(str) if not.
+        """
+        self._empty_all()
+        cmd = f"a\nr\n{file_name}"
         self.serial_port.send(cmd)
         return self._handle_final_response_frame()
 

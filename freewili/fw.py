@@ -926,6 +926,33 @@ class FreeWili:
             case _:
                 raise RuntimeError("Missing case statement")
 
+    def enable_audio_events(
+        self,
+        enable: bool,
+        processor: FreeWiliProcessorType = FreeWiliProcessorType.Main,
+    ) -> Result[str, str]:
+        """Enable or disable audio events.
+
+        Arguments:
+        ----------
+            enable: bool
+                Whether to enable or disable audio events.
+            processor: FreeWiliProcessorType
+                Processor to use.
+
+        Returns:
+        ---------
+            Result[ResponseFrame, str]:
+                Ok(str) if the command was sent successfully, Err(str) if not.
+        """
+        match self.get_serial_from(processor):
+            case Ok(serial):
+                return serial.enable_audio_events(enable)
+            case Err(msg):
+                return Err(msg)
+            case _:
+                raise RuntimeError("Missing case statement")
+
     def process_events(self) -> None:
         """Process any events that have been received.
 
@@ -1109,6 +1136,139 @@ class FreeWili:
         match self.get_serial_from(processor):
             case Ok(serial):
                 return serial.send_ir(data)
+            case Err(msg):
+                return Err(msg)
+            case _:
+                raise RuntimeError("Missing case statement")
+
+    def play_audio_file(
+        self, file_name: str, processor: FreeWiliProcessorType = FreeWiliProcessorType.Display
+    ) -> Result[str, str]:
+        """Play an audio file on the FreeWili.
+
+        Arguments:
+        ----------
+            file_name: str
+                Name of the file in the FreeWili. 8.3 filename limit exists as of V12
+            processor: FreeWiliProcessorType
+                Processor to upload the file to.
+
+        Returns:
+        -------
+            Result[str, str]:
+                Ok(str) if the command was sent successfully, Err(str) if not.
+        """
+        match self.get_serial_from(processor):
+            case Ok(serial):
+                return serial.play_audio_file(file_name)
+            case Err(msg):
+                return Err(msg)
+            case _:
+                raise RuntimeError("Missing case statement")
+
+    def play_audio_asset(
+        self, asset_value: str | int, processor: FreeWiliProcessorType = FreeWiliProcessorType.Display
+    ) -> Result[str, str]:
+        """Play an audio asset on the FreeWili.
+
+        Arguments:
+        ----------
+            asset_value: str | int
+                The asset value to play.
+            processor: FreeWiliProcessorType
+                Processor to upload the file to.
+
+        Returns:
+        -------
+            Result[str, str]:
+                Ok(str) if the command was sent successfully, Err(str) if not.
+        """
+        match self.get_serial_from(processor):
+            case Ok(serial):
+                return serial.play_audio_asset(asset_value)
+            case Err(msg):
+                return Err(msg)
+            case _:
+                raise RuntimeError("Missing case statement")
+
+    def play_audio_number_as_speech(
+        self, value: int, processor: FreeWiliProcessorType = FreeWiliProcessorType.Display
+    ) -> Result[str, str]:
+        """Play an audio number as speech on the FreeWili.
+
+        Arguments:
+        ----------
+            value: int
+                The audio number to play.
+            processor: FreeWiliProcessorType
+                Processor to upload the file to.
+
+        Returns:
+        -------
+            Result[str, str]:
+                Ok(str) if the command was sent successfully, Err(str) if not.
+        """
+        match self.get_serial_from(processor):
+            case Ok(serial):
+                return serial.play_audio_number_as_speech(value)
+            case Err(msg):
+                return Err(msg)
+            case _:
+                raise RuntimeError("Missing case statement")
+
+    def play_audio_tone(
+        self,
+        frequency_hz: int,
+        duration_sec: float,
+        amplitude: float,
+        processor: FreeWiliProcessorType = FreeWiliProcessorType.Display,
+    ) -> Result[str, str]:
+        """Play an audio tone on the FreeWili.
+
+        Arguments:
+        ----------
+            frequency_hz: int
+                The frequency of the tone in Hertz.
+            duration_sec: float
+                The duration of the tone in seconds.
+            amplitude: float
+                The amplitude of the tone (0.0 to 1.0).
+            processor: FreeWiliProcessorType
+                Processor to upload the file to.
+
+        Returns:
+        -------
+            Result[str, str]:
+                Ok(str) if the command was sent successfully, Err(str) if not.
+        """
+        match self.get_serial_from(processor):
+            case Ok(serial):
+                return serial.play_audio_tone(frequency_hz, duration_sec, amplitude)
+            case Err(msg):
+                return Err(msg)
+            case _:
+                raise RuntimeError("Missing case statement")
+
+    def record_audio(
+        self, file_name: str, processor: FreeWiliProcessorType = FreeWiliProcessorType.Display
+    ) -> Result[str, str]:
+        """Record audio on the FreeWili.
+
+        Arguments:
+        ----------
+            file_name: str
+                Name of the file in the FreeWili. (ie. "/sounds/test.wav")
+            processor: FreeWiliProcessorType
+                Processor to upload the file to.
+
+        Returns:
+        -------
+            Result[str, str]:
+                Ok(str) if the command was sent successfully, Err(str) if not.
+        """
+        match self.get_serial_from(processor):
+            case Ok(serial):
+                return serial.record_audio(file_name)
             case Err(msg):
                 return Err(msg)
             case _:

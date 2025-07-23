@@ -272,6 +272,31 @@ class IRData(EventData):
 
 
 @dataclass(frozen=True)
+class AudioData(EventData):
+    """Audio event data from Free-Wili Display."""
+
+    # [*audio 0E00CC80AEF767E4 6165 -956 -1192 -1296 -1276 -1268 -1260 -1136 -940 1]
+    data: list[int]
+
+    @classmethod
+    def from_string(cls, data: str) -> Self:
+        """Convert a string to an IRData object.
+
+        Arguments:
+        ----------
+            data: str
+                The string to convert, typically from an audio event.
+
+        Returns:
+        --------
+            AudioData:
+                The converted AudioData object.
+        """
+        data_int = [int(x) for x in data.split(" ")]
+        return cls(data=data_int)
+
+
+@dataclass(frozen=True)
 class RawData(EventData):
     """Raw event data from Free-Wili Display."""
 
@@ -357,6 +382,7 @@ class EventType(enum.Enum):
     Radio1 = enum.auto()
     Radio2 = enum.auto()
     UART1 = enum.auto()
+    Audio = enum.auto()
 
     def __str__(self) -> str:
         return self.name
@@ -398,6 +424,8 @@ class EventType(enum.Enum):
                 return Radio2Data  # type: ignore[return-value]
             case self.UART1:
                 return UART1Data  # type: ignore[return-value]
+            case self.Audio:
+                return AudioData  # type: ignore[return-value]
             case _:
                 return RawData  # type: ignore[return-value]
 
@@ -439,6 +467,8 @@ class EventType(enum.Enum):
                 return cls(cls.Radio2)
             case "uart1":
                 return cls(cls.UART1)
+            case "audio":
+                return cls(cls.Audio)
             case _:
                 return cls(cls.Unknown)
 
