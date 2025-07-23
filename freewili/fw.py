@@ -1087,6 +1087,33 @@ class FreeWili:
             case _:
                 raise RuntimeError("Missing case statement")
 
+    def send_ir(
+        self, data: bytes, processor: FreeWiliProcessorType = FreeWiliProcessorType.Display
+    ) -> Result[str, str]:
+        """Send IR data.
+
+        Notes: v54 firmware uses NEC format and is converted to an 32-bit integer.
+
+        Parameters:
+        ----------
+            data : bytes
+                The data to send. The first 4 bytes are used as the command.
+            processor: FreeWiliProcessorType
+                Processor to use.
+
+        Returns:
+        -------
+            Result[bytes, str]:
+                Ok(bytes) if the command was sent successfully, Err(str) if not.
+        """
+        match self.get_serial_from(processor):
+            case Ok(serial):
+                return serial.send_ir(data)
+            case Err(msg):
+                return Err(msg)
+            case _:
+                raise RuntimeError("Missing case statement")
+
     def reset_to_uf2_bootloader(self, processor: FreeWiliProcessorType) -> Result[None, str]:
         """Reset the FreeWili to the uf2 bootloader.
 

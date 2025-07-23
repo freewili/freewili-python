@@ -966,6 +966,29 @@ class FreeWiliSerial:
         return self._handle_final_response_frame()
 
     @needs_open()
+    def send_ir(self, data: bytes) -> Result[str, str]:
+        """Send IR data.
+
+        Notes: v54 firmware uses NEC format and is converted to an 32-bit integer.
+
+        Parameters:
+        ----------
+            data : bytes
+                The data to send. The first 4 bytes are used as the command.
+
+        Returns:
+        -------
+            Result[bytes, str]:
+                Ok(bytes) if the command was sent successfully, Err(str) if not.
+        """
+        self._empty_all()
+        assert isinstance(data, bytes), "data must be bytes"
+        data_int: int = int.from_bytes(data[:4], "big")
+        cmd = f"i\na\n{data_int}"
+        self.serial_port.send(cmd)
+        return self._handle_final_response_frame()
+
+    @needs_open()
     def run_script(self, file_name: str) -> Result[str, str]:
         """Run a script on the FreeWili.
 
