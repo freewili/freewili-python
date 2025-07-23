@@ -966,11 +966,6 @@ class FreeWiliSerial:
         return self._handle_final_response_frame()
 
     @needs_open()
-    def enable_stream(self, enable: bool) -> None:
-        """TODO: Docstring."""
-        raise NotImplementedError
-
-    @needs_open()
     def run_script(self, file_name: str) -> Result[str, str]:
         """Run a script on the FreeWili.
 
@@ -1224,33 +1219,6 @@ class FreeWiliSerial:
                 continue
         return Ok(None) if success else Err("Failed to reset to UF2 bootloader after multiple attempts.")
 
-    def _wait_for_serial_data(self, timeout_sec: float, delay_sec: float = 0.1) -> None:
-        """Wait for data to be available on the serial port.
-
-        Parameters:
-        ----------
-            timeout_sec: float
-                The maximum amount of time to wait for data.
-            delay_sec: float
-                The amount of time to wait after checks for data.
-
-        Returns:
-        -------
-            None
-
-        Raises:
-        -------
-            TimeoutError
-                If the timeout is reached before data is available.
-        """
-        raise NotImplementedError("TODO")
-        # start = time.time()
-        # while self._serial.in_waiting == 0:
-        #     time.sleep(0.001)
-        #     if time.time() - start > timeout_sec:
-        #         raise TimeoutError(f"Timed out waiting for data on {self}")
-        # time.sleep(delay_sec)
-
     @needs_open()
     def get_app_info(self) -> Result[FreeWiliAppInfo, str]:
         """Detect the processor type of the FreeWili.
@@ -1277,48 +1245,3 @@ class FreeWiliSerial:
             return Ok(FreeWiliAppInfo(FreeWiliProcessorType.Display, int(version)))
         else:
             return Ok(FreeWiliAppInfo(FreeWiliProcessorType.Unknown, int(version)))
-
-        self.serial_port.send("", True, "\r\n\r\n")
-        time.sleep(3)
-        all_data = []
-        while True:
-            try:
-                data = self.serial_port.data_queue.get_nowait()
-                all_data.append(data)
-            except Empty:
-                break
-
-        self._wait_for_serial_data(3.0)
-        data = self._serial.read_all()
-        # proc_type_regex = re.compile(r"(Main|Display) Processor")
-        # match = proc_type_regex.search(data.decode())
-        # if match is None:
-        #     return Ok(FreeWiliProcessorType.Unknown)
-        # elif "Main Processor" in match.group():
-        #     return Ok(FreeWiliProcessorType.Main)
-        # elif "Display Processor" in match.group():
-        #     return Ok(FreeWiliProcessorType.Display)
-        # else:
-        #     return Err("Unknown processor type detected!")
-        line = ""
-        for line in data.decode().splitlines():
-            if "Processor" in line or "MainCPU" in line or "DisplayCPU" in line:
-                break
-        proc_type_regex = re.compile(r"(?:Main|Display)|(?:App version)|(?:\d+)")
-        results = proc_type_regex.findall(line)
-        if len(results) == 2:
-            # New firmware >= 48
-            processor = results[0]
-            version = results[1]
-        elif len(results) == 3:
-            # Legacy firmware
-            processor = results[0]
-            version = results[2]
-        else:
-            return Ok(FreeWiliAppInfo(FreeWiliProcessorType.Unknown, 0))
-        if "Main" in processor:
-            return Ok(FreeWiliAppInfo(FreeWiliProcessorType.Main, int(version)))
-        elif "Display" in processor:
-            return Ok(FreeWiliAppInfo(FreeWiliProcessorType.Display, int(version)))
-        else:
-            return Ok(FreeWiliAppInfo(FreeWiliProcessorType.Unknown, 0))
