@@ -325,8 +325,11 @@ class BatteryData(EventData):
 
     vbus: float
     vsys: float
-    ichg: float
+    vbatt: float
+    ichg: int
+    """Indicates if the battery is currently charging."""
     charging: bool
+    """True if the battery is charging, False otherwise."""
     charge_complete: bool
 
     @classmethod
@@ -347,18 +350,20 @@ class BatteryData(EventData):
         parts = data.split(" ")
         vbus = float(parts[0])
         vsys = float(parts[1])
-        ichg = float(parts[2])
-        if vbus < 1000 and vsys < 1000 and ichg < 1000:
+        vbatt = float(parts[2])
+        ichg = int(parts[3])
+        if vbus < 1000 and vsys < 1000 and vbatt < 1000:
             # v54 firmware looks like its math is off, so if everything is less than 1000, multiply by 10
             vbus *= 10.0
             vsys *= 10.0
-            ichg *= 10.0
+            vbatt *= 10.0
         return cls(
             vbus=vbus,
             vsys=vsys,
+            vbatt=vbatt,
             ichg=ichg,
-            charging=bool(int(parts[3])),
-            charge_complete=bool(int(parts[4])),
+            charging=bool(int(parts[4])),
+            charge_complete=bool(int(parts[5])),
         )
 
 

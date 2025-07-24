@@ -21,7 +21,7 @@ from PySide6.QtWidgets import (
 
 from freewili import FreeWili
 from freewili.framing import ResponseFrame
-from freewili.types import AccelData, BatteryData, ButtonData, EventType, IRData
+from freewili.types import AccelData, BatteryData, ButtonData, EventType, GPIOData, IRData
 
 
 class EventSignals(QObject):
@@ -31,6 +31,7 @@ class EventSignals(QObject):
     button_updated = Signal(ButtonData)
     ir_updated = Signal(IRData)
     battery_updated = Signal(BatteryData)
+    gpio_updated = Signal(GPIOData)
     raw_event = Signal(str)
 
 
@@ -48,6 +49,7 @@ class FreeWiliEventsGUI(QMainWindow):
         self.signals.button_updated.connect(self.update_button_display)
         self.signals.ir_updated.connect(self.update_ir_display)
         self.signals.battery_updated.connect(self.update_battery_display)
+        self.signals.gpio_updated.connect(self.update_gpio_display)
         self.signals.raw_event.connect(self.update_raw_events)
 
         self.setup_ui()
@@ -75,8 +77,9 @@ class FreeWiliEventsGUI(QMainWindow):
         self.button_cb = QCheckBox("Buttons")
         self.ir_cb = QCheckBox("IR")
         self.battery_cb = QCheckBox("Battery")
+        self.gpio_cb = QCheckBox("GPIO")
 
-        for cb in [self.accel_cb, self.button_cb, self.ir_cb, self.battery_cb]:
+        for cb in [self.accel_cb, self.button_cb, self.ir_cb, self.battery_cb, self.gpio_cb]:
             cb.stateChanged.connect(self.update_event_subscriptions)
             control_layout.addWidget(cb)
 
@@ -109,6 +112,10 @@ class FreeWiliEventsGUI(QMainWindow):
         # IR group
         self.ir_group = self.create_ir_group()
         right_layout.addWidget(self.ir_group)
+
+        # GPIO group
+        self.gpio_group = self.create_gpio_group()
+        right_layout.addWidget(self.gpio_group)
 
         # Raw events log
         self.raw_events_group = self.create_raw_events_group()
@@ -154,6 +161,7 @@ class FreeWiliEventsGUI(QMainWindow):
         fields = [
             ("VBUS:", "vbus"),
             ("VSYS:", "vsys"),
+            ("VBATT:", "vbatt"),
             ("ICHG:", "ichg"),
             ("Charging:", "charging"),
             ("Complete:", "charge_complete"),
@@ -202,13 +210,41 @@ class FreeWiliEventsGUI(QMainWindow):
 
         return group
 
+    def create_gpio_group(self):
+        """Create GPIO state display group."""
+        group = QGroupBox("GPIO States")
+        layout = QGridLayout(group)
+
+        self.gpio_labels = {}
+
+        # Get GPIO mappings from types.py
+        from freewili.types import GPIO_MAP
+
+        # Create labels for each GPIO pin
+        row = 0
+        for _gpio_num, gpio_name in GPIO_MAP.items():
+            # Show just the GPIO number and main function
+            display_name = gpio_name.replace("/", " / ")
+
+            label = QLabel(f"{display_name}:")
+            value_label = QLabel("--")
+            value_label.setStyleSheet("font-weight: bold; font-family: monospace;")
+
+            layout.addWidget(label, row, 0)
+            layout.addWidget(value_label, row, 1)
+
+            self.gpio_labels[gpio_name] = value_label
+            row += 1
+
+        return group
+
     def create_raw_events_group(self):
         """Create raw events log group."""
         group = QGroupBox("Raw Events Log")
         layout = QVBoxLayout(group)
 
         self.raw_events_text = QTextEdit()
-        self.raw_events_text.setMaximumHeight(150)
+        # self.raw_events_text.setMaximumHeight(150)
         self.raw_events_text.setStyleSheet("font-family: monospace; font-size: 10px;")
         layout.addWidget(self.raw_events_text)
 
@@ -235,6 +271,8 @@ class FreeWiliEventsGUI(QMainWindow):
                 self.signals.ir_updated.emit(data)
             elif event_type == EventType.Battery and isinstance(data, BatteryData):
                 self.signals.battery_updated.emit(data)
+            elif event_type == EventType.GPIO and isinstance(data, GPIOData):
+                self.signals.gpio_updated.emit(data)
 
             # Also log to raw events
             self.signals.raw_event.emit(f"{event_type.name}: {data}")
@@ -259,10 +297,10 @@ class FreeWiliEventsGUI(QMainWindow):
             label = self.button_labels[key]
             if pressed:
                 label.setText("PRESSED")
-                label.setStyleSheet("font-weight: bold; color: red;")
+                label.setStyleSheet("font-weight: bold; color: green;")
             else:
                 label.setText("Released")
-                label.setStyleSheet("font-weight: bold; color: black;")
+                label.setStyleSheet("font-weight: bold; color: red;")
 
     def update_ir_display(self, data: IRData):
         """Update IR display."""
@@ -273,9 +311,22 @@ class FreeWiliEventsGUI(QMainWindow):
         """Update battery display."""
         self.battery_labels["vbus"].setText(f"{data.vbus:.1f}mV")
         self.battery_labels["vsys"].setText(f"{data.vsys:.1f}mV")
-        self.battery_labels["ichg"].setText(f"{data.ichg:.1f}mA")
+        self.battery_labels["vbatt"].setText(f"{data.vbatt:.1f}mV")
+        self.battery_labels["ichg"].setText(f"{data.ichg}mA")
         self.battery_labels["charging"].setText("YES" if data.charging else "NO")
         self.battery_labels["charge_complete"].setText("YES" if data.charge_complete else "NO")
+
+    def update_gpio_display(self, data: GPIOData):
+        """Update GPIO display."""
+        for gpio_name, value in data.pin.items():
+            if gpio_name in self.gpio_labels:
+                label = self.gpio_labels[gpio_name]
+                if value == 1:
+                    label.setText("HIGH")
+                    label.setStyleSheet("font-weight: bold; color: red; font-family: monospace;")
+                else:
+                    label.setText("LOW")
+                    label.setStyleSheet("font-weight: bold; color: blue; font-family: monospace;")
 
     def update_raw_events(self, event_text: str):
         """Update raw events log."""
@@ -315,6 +366,9 @@ class FreeWiliEventsGUI(QMainWindow):
                 # Enable default events
                 self.accel_cb.setChecked(True)
                 self.button_cb.setChecked(True)
+                self.ir_cb.setChecked(True)
+                self.battery_cb.setChecked(True)
+                self.gpio_cb.setChecked(True)
 
             except Exception as e:
                 self.signals.raw_event.emit(f"Connection error: {e}")
@@ -324,7 +378,7 @@ class FreeWiliEventsGUI(QMainWindow):
             self.event_timer.stop()
 
             # Disable all events
-            for cb in [self.accel_cb, self.button_cb, self.ir_cb, self.battery_cb]:
+            for cb in [self.accel_cb, self.button_cb, self.ir_cb, self.battery_cb, self.gpio_cb]:
                 cb.setChecked(False)
 
             if hasattr(self.freewili, "close"):
@@ -382,6 +436,17 @@ class FreeWiliEventsGUI(QMainWindow):
                     result = self.freewili.enable_battery_events(False)
                     if result.is_err():
                         self.signals.raw_event.emit(f"Error disabling battery: {result.unwrap_err()}")
+
+            # Update GPIO events
+            if hasattr(self.freewili, "enable_gpio_events"):
+                if self.gpio_cb.isChecked():
+                    result = self.freewili.enable_gpio_events(True)
+                    if result.is_err():
+                        self.signals.raw_event.emit(f"Error enabling GPIO: {result.unwrap_err()}")
+                else:
+                    result = self.freewili.enable_gpio_events(False)
+                    if result.is_err():
+                        self.signals.raw_event.emit(f"Error disabling GPIO: {result.unwrap_err()}")
 
         except Exception as e:
             self.signals.raw_event.emit(f"Error updating subscriptions: {e}")
