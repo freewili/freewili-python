@@ -569,3 +569,65 @@ class IOMenuCommand(enum.Enum):
             case self.Get:
                 return "u"
         raise ValueError(f"{self.name} ({self.value}) is not a supported menu command")
+
+
+class FileType(enum.Enum):
+    """Free-Wili File Type."""
+
+    Unknown = enum.auto()
+    Directory = enum.auto()
+    File = enum.auto()
+
+    def __str__(self) -> str:
+        return self.name
+
+    @classmethod
+    def from_string(cls, value: str) -> Self:
+        """Convert a string value to a FileType.
+
+        Arguments:
+        ----------
+            value: str
+                string value to convert to an enum. Case Insensitive.
+
+        Returns:
+        --------
+            FileType:
+                FreeWili file type.
+
+        """
+        match value.lower():
+            case "dir":
+                return cls(cls.Directory)
+            case "file":
+                return cls(cls.File)
+            case _:
+                return cls(cls.Unknown)
+
+
+@dataclass(frozen=True)
+class FileSystemItem:
+    """File system item representation for Free-Wili."""
+
+    """Name of the file system item."""
+    name: str
+    """Type of the file system item, either File or Directory."""
+    file_type: FileType
+    """Size of the file in bytes, 0 for directories."""
+    size: int = 0
+
+    def __str__(self) -> str:
+        return f"FileSystemItem(name={self.name}, file_type={self.file_type}, size={self.size})"
+
+
+@dataclass(frozen=True)
+class FileSystem:
+    """File system representation for Free-Wili."""
+
+    # File system root path
+    root: str
+    # List of files in the file system
+    files: list[str]
+
+    def __str__(self) -> str:
+        return f"FileSystem(root={self.root}, files={self.files})"

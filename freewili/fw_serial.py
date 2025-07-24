@@ -1387,3 +1387,115 @@ class FreeWiliSerial:
             return Ok(FreeWiliAppInfo(FreeWiliProcessorType.Display, int(version)))
         else:
             return Ok(FreeWiliAppInfo(FreeWiliProcessorType.Unknown, int(version)))
+
+    @needs_open()
+    def change_directory(self, directory: str) -> Result[str, str]:
+        """Change the current directory on the FreeWili.
+
+        Arguments:
+        ----------
+            directory: str
+                The directory to change to.
+
+        Returns:
+        -------
+            Result[str, str]:
+                Ok(str) if the command was sent successfully, Err(str) if not.
+        """
+        self._empty_all()
+        cmd = f"x\na\n{directory}"
+        self.serial_port.send(cmd)
+        return self._handle_final_response_frame()
+
+    @needs_open()
+    def create_directory(self, directory: str) -> Result[str, str]:
+        """Create a new directory on the FreeWili.
+
+        Arguments:
+        ----------
+            directory: str
+                The directory to create.
+
+        Returns:
+        -------
+            Result[str, str]:
+                Ok(str) if the command was sent successfully, Err(str) if not.
+        """
+        self._empty_all()
+        cmd = f"x\nc\n{directory}"
+        self.serial_port.send(cmd)
+        return self._handle_final_response_frame()
+
+    @needs_open()
+    def remove_directory_or_file(self, dir_or_filename: str) -> Result[str, str]:
+        """Remove a directory or file on the FreeWili.
+
+        Arguments:
+        ----------
+            dir_or_filename: str
+                The directory or file to remove.
+                The directory to create.
+
+        Returns:
+        -------
+            Result[str, str]:
+                Ok(str) if the command was sent successfully, Err(str) if not.
+        """
+        self._empty_all()
+        cmd = f"x\nr\n{dir_or_filename}"
+        self.serial_port.send(cmd)
+        return self._handle_final_response_frame()
+
+    @needs_open()
+    def create_blank_file(self, name: str) -> Result[str, str]:
+        """Create a blank file on the FreeWili.
+
+        Arguments:
+        ----------
+            name: str
+                The name of the file to create.
+
+        Returns:
+        -------
+            Result[str, str]:
+                Ok(str) if the command was sent successfully, Err(str) if not.
+        """
+        self._empty_all()
+        cmd = f"x\nb\n{name}"
+        self.serial_port.send(cmd)
+        return self._handle_final_response_frame()
+
+    @needs_open()
+    def move_directory_or_file(self, original_name: str, new_name: str) -> Result[str, str]:
+        """Move a directory or file on the FreeWili.
+
+        Arguments:
+        ----------
+            original_name: str
+                The original name of the directory or file to move.
+            new_name: str
+                The new name of the directory or file.
+
+        Returns:
+        -------
+            Result[str, str]:
+                Ok(str) if the command was sent successfully, Err(str) if not.
+        """
+        self._empty_all()
+        cmd = f"x\nn\n{original_name} {new_name}"
+        self.serial_port.send(cmd)
+        return self._handle_final_response_frame()
+
+    @needs_open()
+    def format_filesystem(self) -> Result[str, str]:
+        """Format the filesystem on the FreeWili.
+
+        Returns:
+        -------
+            Result[str, str]:
+                Ok(str) if the command was sent successfully, Err(str) if not.
+        """
+        self._empty_all()
+        cmd = "x\nt\ndestroyfiles"
+        self.serial_port.send(cmd)
+        return self._handle_final_response_frame()
