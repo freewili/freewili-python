@@ -32,6 +32,7 @@ with FreeWili.find_first().expect("Failed to find FreeWili") as fw:
     fw.enable_button_events(True, 33).expect("Failed to enable button events")
     fw.enable_ir_events(True).expect("Failed to enable IR events")
     fw.enable_battery_events(True).expect("Failed to enable battery events")
+    # fw.enable_audio_events(True).expect("Failed to enable audio events")
     print("Listening for events...")
     while True:
         try:
@@ -45,4 +46,5 @@ with FreeWili.find_first().expect("Failed to find FreeWili") as fw:
     fw.enable_button_events(False).expect("Failed to disable button events")
     fw.enable_ir_events(False).expect("Failed to disable IR events")
     fw.enable_battery_events(False).expect("Failed to disable battery events")
+    # fw.enable_audio_events(False).expect("Failed to disable audio events")
     print("Exiting event loop")

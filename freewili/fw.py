@@ -929,7 +929,7 @@ class FreeWili:
     def enable_audio_events(
         self,
         enable: bool,
-        processor: FreeWiliProcessorType = FreeWiliProcessorType.Main,
+        processor: FreeWiliProcessorType = FreeWiliProcessorType.Display,
     ) -> Result[str, str]:
         """Enable or disable audio events.
 
