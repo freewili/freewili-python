@@ -74,3 +74,66 @@ PySide6 GUI application for monitoring real-time FreeWili events with visual dis
 .. literalinclude:: ../../examples/events_gui.py
    :language: python
    :linenos:
+
+Audio Recording
+---------------
+
+Record audio from FreeWili and save it to a WAV file.
+
+.. literalinclude:: ../../examples/record_audio.py
+   :language: python
+   :linenos:
+
+Audio Playback - Tone
+----------------------
+
+Play audio tones on the FreeWili device.
+
+.. literalinclude:: ../../examples/play_audio_tone.py
+   :language: python
+   :linenos:
+
+Audio Playback - Number
+------------------------
+
+Play audio number announcements on the FreeWili device.
+
+.. literalinclude:: ../../examples/play_audio_number.py
+   :language: python
+   :linenos:
+
+Audio Playback - Assets
+------------------------
+
+Play audio assets/files on the FreeWili device.
+
+.. literalinclude:: ../../examples/play_audio_assets.py
+   :language: python
+   :linenos:
+
+IR Communication - Send
+------------------------
+
+Send infrared signals using the FreeWili device.
+
+.. literalinclude:: ../../examples/send_ir.py
+   :language: python
+   :linenos:
+
+IR Communication - Read
+------------------------
+
+Read and decode infrared signals using the FreeWili device.
+
+.. literalinclude:: ../../examples/read_ir.py
+   :language: python
+   :linenos:
+
+UART Communication
+------------------
+
+UART serial communication example for the FreeWili device.
+
+.. literalinclude:: ../../examples/uart.py
+   :language: python
+   :linenos:

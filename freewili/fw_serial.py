@@ -1084,7 +1084,7 @@ class FreeWiliSerial:
         """
         self._empty_all()
         assert isinstance(frequency_hz, int)
-        cmd = f"a\nt\n{frequency_hz}\n{duration_sec:.2f}\n{amplitude:.2f}"
+        cmd = f"a\nt\n{frequency_hz} {duration_sec:.2f} {amplitude:.2f}"
         self.serial_port.send(cmd)
         return self._handle_final_response_frame()
 
