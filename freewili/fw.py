@@ -434,6 +434,32 @@ class FreeWili:
             case _:
                 raise RuntimeError("Missing case statement")
 
+    def load_fpga_from_file(
+        self, file_name: str, processor: FreeWiliProcessorType = FreeWiliProcessorType.Main
+    ) -> Result[str, str]:
+        """Load FPGA from file.
+
+        Arguments:
+        ----------
+            file_name: str
+                Name of the file in the FreeWili. 8.3 filename limit exists as of V12
+                'spi','uart','i2c' or a filename name with extension.
+            processor: FreeWiliProcessorType
+                Processor to upload the file to.
+
+        Returns:
+        ---------
+            Result[str, str]:
+                Ok(str) if the command was sent successfully, Err(str) if not.
+        """
+        match self.get_serial_from(processor):
+            case Ok(serial):
+                return serial.load_fpga_from_file(file_name)
+            case Err(msg):
+                return Err(msg)
+            case _:
+                raise RuntimeError("Missing case statement")
+
     def get_io(self, processor: FreeWiliProcessorType = FreeWiliProcessorType.Main) -> Result[tuple[int, ...], str]:
         """Get all the IO values.
 

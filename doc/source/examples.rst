@@ -21,6 +21,15 @@ Upload files to the first Free-Wili device.
    :language: python
    :linenos:
 
+FPGA Configuration
+------------------
+
+Load FPGA configuration files on the FreeWili device.
+
+.. literalinclude:: ../../examples/fpga.py
+   :language: python
+   :linenos:
+
 Toggle IO
 ------------
 
