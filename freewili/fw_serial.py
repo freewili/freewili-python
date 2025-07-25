@@ -27,7 +27,7 @@ import serial
 import serial.tools.list_ports
 from result import Err, Ok, Result
 
-from freewili.types import ButtonColor, EventType, FreeWiliProcessorType, IOMenuCommand
+from freewili.types import ButtonColor, EventType, FileSystemContents, FreeWiliProcessorType, IOMenuCommand
 
 
 @dataclasses.dataclass
@@ -1499,3 +1499,134 @@ class FreeWiliSerial:
         cmd = "x\nt\ndestroyfiles"
         self.serial_port.send(cmd)
         return self._handle_final_response_frame()
+
+    @needs_open(enable_menu=True)
+    def list_current_directory(self) -> Result[FileSystemContents, str]:
+        """List the contents of the current directory on the FreeWili.
+
+        Returns:
+        -------
+            Result[FileSystemContents, str]:
+                Ok(FileSystemContents) if the command was sent successfully, Err(str) if not.
+        """
+        from freewili.types import FileSystemContents, FileSystemItem, FileType
+
+        self._empty_all()
+        # re-print the menu to get the filesystem listing
+        cmd = ""
+        self.serial_port.send(cmd)
+
+        # Collect all output data
+        collected_data = ""
+        start = time.time()
+        while time.time() - start <= 6.0:
+            try:
+                data = self.serial_port.data_queue.get_nowait().decode("utf-8", errors="ignore")
+                collected_data += data
+                if "Enter Letter:" in data:
+                    break
+            except queue.Empty:
+                time.sleep(0.001)
+                continue
+
+        # Remove ANSI escape codes and normalize line endings
+        import re
+
+        ansi_escape = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
+        collected_data = ansi_escape.sub("", collected_data)
+        collected_data = collected_data.replace("\r\n", "\n").replace("\r", "\n")
+
+        # Parse the filesystem output
+        lines = [line.strip() for line in collected_data.split("\n") if line.strip()]
+
+        # Find the filesystem section
+        fs_start_idx = None
+        cwd = "/"
+
+        for i, line in enumerate(lines):
+            if "File System" in line and "bytes free" in line:
+                fs_start_idx = i
+                break
+
+        if fs_start_idx is None:
+            return Err("Could not find filesystem information in output")
+
+        # Look for directory line (e.g., "/ directory contents")
+        for i in range(fs_start_idx + 1, len(lines)):
+            line = lines[i].strip()
+            if "directory contents" in line:
+                cwd = line.split(" directory contents")[0].strip()
+                fs_start_idx = i
+                break
+
+        if fs_start_idx is None:
+            return Err("Could not find directory contents section")
+
+        # Parse file/directory entries
+        items = []
+        for i in range(fs_start_idx + 1, len(lines)):
+            line = lines[i].strip()
+            if not line:
+                continue
+
+            # Skip menu lines or other non-filesystem content
+            menu_prefixes = (
+                "a)",
+                "b)",
+                "c)",
+                "d)",
+                "e)",
+                "f)",
+                "g)",
+                "h)",
+                "i)",
+                "j)",
+                "k)",
+                "l)",
+                "m)",
+                "n)",
+                "o)",
+                "p)",
+                "q)",
+                "r)",
+                "s)",
+                "t)",
+                "u)",
+                "v)",
+                "w)",
+                "x)",
+                "y)",
+                "z)",
+            )
+            if line.startswith(menu_prefixes):
+                break
+
+            # Parse file/dir entries: "file  settings.txt  0 bytes" or "dir   scripts"
+            parts = line.split()
+            if len(parts) >= 2:
+                file_type_str = parts[0]
+                name = parts[1]
+
+                if file_type_str == "file" and len(parts) >= 4 and parts[3] == "bytes":
+                    # File entry: "file  settings.txt  0 bytes"
+                    try:
+                        size = int(parts[2])
+                        items.append(FileSystemItem(name=name, file_type=FileType.File, size=size))
+                    except ValueError:
+                        # If size parsing fails, default to 0
+                        items.append(FileSystemItem(name=name, file_type=FileType.File, size=0))
+                elif file_type_str == "dir":
+                    # Directory entry: "dir   scripts"
+                    items.append(FileSystemItem(name=name, file_type=FileType.Directory, size=0))
+
+        return Ok(FileSystemContents(cwd=cwd, contents=items))
+
+
+"""
+File System (14381056 bytes free of 14393344)
+/ directory contents
+file  settings.txt  0 bytes
+dir   scripts
+dir   data
+dir   radio
+"""

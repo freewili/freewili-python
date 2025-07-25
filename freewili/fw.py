@@ -16,7 +16,7 @@ from result import Err, Ok, Result
 
 from freewili.framing import ResponseFrame
 from freewili.fw_serial import FreeWiliSerial
-from freewili.types import ButtonColor, EventType, FreeWiliProcessorType, IOMenuCommand
+from freewili.types import ButtonColor, EventType, FileSystemContents, FreeWiliProcessorType, IOMenuCommand
 
 # USB Locations:
 # first address = FTDI
@@ -1409,6 +1409,27 @@ class FreeWili:
         match self.get_serial_from(processor):
             case Ok(serial):
                 return serial.format_filesystem()
+            case Err(msg):
+                return Err(msg)
+            case _:
+                raise RuntimeError("Missing case statement")
+
+    def list_current_directory(self, processor: FreeWiliProcessorType) -> Result[FileSystemContents, str]:
+        """List the contents of the current directory on the FreeWili.
+
+        Arguments:
+        ----------
+            processor: FreeWiliProcessorType
+                Processor to use.
+
+        Returns:
+        -------
+            Result[FileSystemContents, str]:
+                Ok(FileSystemContents) if the command was sent successfully, Err(str) if not.
+        """
+        match self.get_serial_from(processor):
+            case Ok(serial):
+                return serial.list_current_directory()
             case Err(msg):
                 return Err(msg)
             case _:

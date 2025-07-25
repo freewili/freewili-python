@@ -621,13 +621,13 @@ class FileSystemItem:
 
 
 @dataclass(frozen=True)
-class FileSystem:
+class FileSystemContents:
     """File system representation for Free-Wili."""
 
-    # File system root path
-    root: str
+    # File system current working directory
+    cwd: str
     # List of files in the file system
-    files: list[str]
+    contents: list[FileSystemItem]
 
     def __str__(self) -> str:
-        return f"FileSystem(root={self.root}, files={self.files})"
+        return f"FileSystem(cwd={self.cwd}, contents={self.contents})"
