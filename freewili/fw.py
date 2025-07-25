@@ -1417,6 +1417,8 @@ class FreeWili:
     def list_current_directory(self, processor: FreeWiliProcessorType) -> Result[FileSystemContents, str]:
         """List the contents of the current directory on the FreeWili.
 
+        Note: This API is currently considered experimental and may change in the future.
+
         Arguments:
         ----------
             processor: FreeWiliProcessorType
