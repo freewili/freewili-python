@@ -165,9 +165,9 @@ class ResponseFrame:
             data: bytes = bytes([int(x, 16) for x in response.split(" ")])
             return Ok(data)
         except TypeError as ex:
-            return Err(ex)
+            return Err(str(ex))
         except ValueError as ex:
-            return Err(ex)
+            return Err(str(ex))
 
     def timestamp_as_datetime(self, check_ok: bool = False) -> Result[np.datetime64, str]:
         """Convert the timestamp into a datetime.

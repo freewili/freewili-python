@@ -469,8 +469,8 @@ class FreeWili:
 
         Returns:
         ---------
-            Result[ResponseFrame, str]:
-                Ok(ResponseFrame) if the command was sent successfully, Err(str) if not.
+            Result[str, str]:
+                Ok(str) if the command was sent successfully, Err(str) if not.
         """
         match self.get_serial_from(processor):
             case Ok(serial):
@@ -505,8 +505,8 @@ class FreeWili:
 
         Returns:
         ---------
-            Result[ResponseFrame, str]:
-                Ok(ResponseFrame) if the command was sent successfully, Err(str) if not.
+            Result[str, str]:
+                Ok(str) if the command was sent successfully, Err(str) if not.
         """
         match self.get_serial_from(processor):
             case Ok(serial):
@@ -523,7 +523,7 @@ class FreeWili:
         green: int,
         blue: int,
         processor: FreeWiliProcessorType = FreeWiliProcessorType.Display,
-    ) -> Result[ResponseFrame, str]:
+    ) -> Result[str, str]:
         """Set the GUI RGB LEDs.
 
         Parameters:
@@ -541,12 +541,38 @@ class FreeWili:
 
         Returns:
         ---------
-            Result[ResponseFrame, str]:
-                Ok(ResponseFrame) if the command was sent successfully, Err(str) if not.
+            Result[str, str]:
+                Ok(str) if the command was sent successfully, Err(str) if not.
         """
         match self.get_serial_from(processor):
             case Ok(serial):
                 return serial.set_board_leds(io, red, green, blue)
+            case Err(msg):
+                return Err(msg)
+            case _:
+                raise RuntimeError("Missing case statement")
+
+    def read_write_spi_data(
+        self, data: bytes, processor: FreeWiliProcessorType = FreeWiliProcessorType.Main
+    ) -> Result[str, str]:
+        """Read and Write SPI data.
+
+        Parameters:
+        -----------
+            data : bytes
+                The data to write.
+            processor: FreeWiliProcessorType
+                Processor to use.
+
+        Returns:
+        ---------
+            Result[str, str]:
+                Ok(str) if the command was sent successfully, Err(str) if not.
+                The str is the response from the device, typically "OK".
+        """
+        match self.get_serial_from(processor):
+            case Ok(serial):
+                return serial.read_write_spi_data(data)
             case Err(msg):
                 return Err(msg)
             case _:
@@ -570,8 +596,8 @@ class FreeWili:
 
         Returns:
         ---------
-            Result[ResponseFrame, str]:
-                Ok(ResponseFrame) if the command was sent successfully, Err(str) if not.
+            Result[bytes, str]:
+                Ok(bytes) if the command was sent successfully, Err(str) if not.
         """
         match self.get_serial_from(processor):
             case Ok(serial):
@@ -634,7 +660,7 @@ class FreeWili:
 
     def show_gui_image(
         self, fwi_path: str, processor: FreeWiliProcessorType = FreeWiliProcessorType.Display
-    ) -> Result[ResponseFrame, str]:
+    ) -> Result[str, str]:
         """Show a fwi image on the display.
 
         Arguments:
@@ -646,8 +672,8 @@ class FreeWili:
 
         Returns:
         ---------
-            Result[ResponseFrame, str]:
-                Ok(ResponseFrame) if the command was sent successfully, Err(str) if not.
+            Result[str, str]:
+                Ok(str) if the command was sent successfully, Err(str) if not.
         """
         match self.get_serial_from(processor):
             case Ok(serial):
@@ -659,7 +685,7 @@ class FreeWili:
 
     def show_text_display(
         self, text: str, processor: FreeWiliProcessorType = FreeWiliProcessorType.Display
-    ) -> Result[ResponseFrame, str]:
+    ) -> Result[str, str]:
         """Show text on the display.
 
         Arguments:
@@ -671,8 +697,8 @@ class FreeWili:
 
         Returns:
         ---------
-            Result[ResponseFrame, str]:
-                Ok(ResponseFrame) if the command was sent successfully, Err(str) if not.
+            Result[str, str]:
+                Ok(str) if the command was sent successfully, Err(str) if not.
         """
         match self.get_serial_from(processor):
             case Ok(serial):
@@ -705,9 +731,7 @@ class FreeWili:
             case _:
                 raise RuntimeError("Missing case statement")
 
-    def reset_display(
-        self, processor: FreeWiliProcessorType = FreeWiliProcessorType.Display
-    ) -> Result[ResponseFrame, str]:
+    def reset_display(self, processor: FreeWiliProcessorType = FreeWiliProcessorType.Display) -> Result[str, str]:
         """Reset the display back to the main menu.
 
         Arguments:
@@ -717,8 +741,8 @@ class FreeWili:
 
         Returns:
         ---------
-            Result[ResponseFrame, str]:
-                Ok(ResponseFrame) if the command was sent successfully, Err(str) if not.
+            Result[str, str]:
+                Ok(str) if the command was sent successfully, Err(str) if not.
         """
         match self.get_serial_from(processor):
             case Ok(serial):
@@ -747,7 +771,7 @@ class FreeWili:
 
         Returns:
         ---------
-            Result[ResponseFrame, str]:
+            Result[str, str]:
                 Ok(str) if the command was sent successfully, Err(str) if not.
         """
         match self.get_serial_from(processor):
@@ -777,7 +801,7 @@ class FreeWili:
 
         Returns:
         ---------
-            Result[ResponseFrame, str]:
+            Result[str, str]:
                 Ok(str) if the command was sent successfully, Err(str) if not.
         """
         match self.get_serial_from(processor):
@@ -807,7 +831,7 @@ class FreeWili:
 
         Returns:
         ---------
-            Result[ResponseFrame, str]:
+            Result[str, str]:
                 Ok(str) if the command was sent successfully, Err(str) if not.
         """
         match self.get_serial_from(processor):
@@ -834,7 +858,7 @@ class FreeWili:
 
         Returns:
         ---------
-            Result[ResponseFrame, str]:
+            Result[str, str]:
                 Ok(str) if the command was sent successfully, Err(str) if not.
         """
         match self.get_serial_from(processor):
@@ -861,7 +885,7 @@ class FreeWili:
 
         Returns:
         ---------
-            Result[ResponseFrame, str]:
+            Result[str, str]:
                 Ok(str) if the command was sent successfully, Err(str) if not.
         """
         match self.get_serial_from(processor):
@@ -888,7 +912,7 @@ class FreeWili:
 
         Returns:
         ---------
-            Result[ResponseFrame, str]:
+            Result[str, str]:
                 Ok(str) if the command was sent successfully, Err(str) if not.
         """
         match self.get_serial_from(processor):
@@ -915,7 +939,7 @@ class FreeWili:
 
         Returns:
         ---------
-            Result[ResponseFrame, str]:
+            Result[str, str]:
                 Ok(str) if the command was sent successfully, Err(str) if not.
         """
         match self.get_serial_from(processor):
@@ -942,7 +966,7 @@ class FreeWili:
 
         Returns:
         ---------
-            Result[ResponseFrame, str]:
+            Result[str, str]:
                 Ok(str) if the command was sent successfully, Err(str) if not.
         """
         match self.get_serial_from(processor):

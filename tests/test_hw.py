@@ -66,6 +66,13 @@ def test_hw_read_all_buttons() -> None:
         device.close()
 
 
+@pytest.mark.skipif("len(FreeWili.find_all()) == 0")
+def test_spi_read_write_data() -> None:
+    """Test SPI read/write data on a FreeWili."""
+    with FreeWili.find_first().expect("Failed to open") as fw:
+        fw.read_write_spi_data(b"\x01\x02\x03\x04").expect("Failed to read/write SPI data")
+
+
 if __name__ == "__main__":
     import pytest
 

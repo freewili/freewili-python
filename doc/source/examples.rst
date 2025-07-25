@@ -138,6 +138,15 @@ UART serial communication example for the FreeWili device.
    :language: python
    :linenos:
 
+SPI Communication
+-----------------
+
+SPI read/write communication example for the FreeWili device.
+
+.. literalinclude:: ../../examples/spi_read_write.py
+   :language: python
+   :linenos:
+
 Filesystem Explorer
 -------------------
 

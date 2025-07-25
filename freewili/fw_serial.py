@@ -475,7 +475,18 @@ class FreeWiliSerial:
             Result[bytes, str]:
                 Ok(bytes) if the command was sent successfully, Err(str) if not.
         """
-        raise NotImplementedError("TODO")
+        data_bytes = " ".join(f"{i:02X}" for i in data)
+        cmd = f"s\nw\n{data_bytes}"
+        self.serial_port.send(cmd)
+        match self._wait_for_response_frame():
+            case Ok(rf):
+                if not rf.is_ok():
+                    return Err(f"Failed to write to SPI data: {rf.response}")
+                return rf.response_as_bytes()
+            case Err(msg):
+                return Err(msg)
+            case _:
+                raise RuntimeError("Missing case statement")
 
     @needs_open()
     def write_i2c(self, address: int, register: int, data: bytes) -> Result[str, str]:
@@ -587,7 +598,7 @@ class FreeWiliSerial:
 
         Returns:
         -------
-            Result[ResponseFrame, str]:
+            Result[str, str]:
                 Ok(str) if the command was sent successfully, Err(str) if not.
         """
         # k) GUI Functions
