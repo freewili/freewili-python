@@ -1,5 +1,6 @@
 """For Interfacing to Free-Wili Devices."""
 
+import datetime
 import pathlib
 import platform
 import sys
@@ -1503,6 +1504,132 @@ class FreeWili:
         match self.get_serial_from(processor):
             case Ok(serial):
                 return serial.reset_to_uf2_bootloader()
+            case Err(msg):
+                return Err(msg)
+            case _:
+                raise RuntimeError("Missing case statement")
+
+    def get_rtc(
+        self, processor: FreeWiliProcessorType = FreeWiliProcessorType.Main
+    ) -> Result[tuple[datetime.datetime, int], str]:
+        """Get the RTC (Real-Time Clock) from the FreeWili.
+
+        Arguments:
+        ----------
+            processor: FreeWiliProcessorType
+                Processor to use.
+
+        Returns:
+        -------
+            Result[tuple[datetime.datetime, int], str]:
+                Ok(tuple[datetime.datetime, int]) if the command was sent successfully, Err(str) if not.
+        """
+        match self.get_serial_from(processor):
+            case Ok(serial):
+                return serial.get_rtc()
+            case Err(msg):
+                return Err(msg)
+            case _:
+                raise RuntimeError("Missing case statement")
+
+    def set_rtc(
+        self,
+        dt: datetime.datetime,
+        trim: int | None = None,
+        processor: FreeWiliProcessorType = FreeWiliProcessorType.Main,
+    ) -> Result[str, str]:
+        """Set the RTC (Real-Time Clock) on the FreeWili.
+
+        Arguments:
+        ----------
+            dt: datetime
+                The datetime to set the RTC to.
+            trim: int | None
+                The trim value to set. (-127 - 127). If None, no trim is set.
+            processor: FreeWiliProcessorType
+                Processor to use.
+
+        Returns:
+        -------
+            Result[str, str]:
+                Ok(str) if the command was sent successfully, Err(str) if not.
+        """
+        match self.get_serial_from(processor):
+            case Ok(serial):
+                return serial.set_rtc(dt, trim)
+            case Err(msg):
+                return Err(msg)
+            case _:
+                raise RuntimeError("Missing case statement")
+
+    def set_settings_to_default(self, processor: FreeWiliProcessorType) -> Result[str, str]:
+        """Set the settings to default on the FreeWili.
+
+        Notes: Settings are unstable as of v54 firmware. Subject to change in future firmware versions.
+
+        Arguments:
+        ----------
+            processor: FreeWiliProcessorType
+                Processor to use.
+
+        Returns:
+        -------
+            Result[str, str]:
+                Ok(str) if the command was sent successfully, Err(str) if not.
+        """
+        match self.get_serial_from(processor):
+            case Ok(serial):
+                return serial.set_settings_to_default()
+            case Err(msg):
+                return Err(msg)
+            case _:
+                raise RuntimeError("Missing case statement")
+
+    def set_settings_as_startup(self, processor: FreeWiliProcessorType) -> Result[str, str]:
+        """Set the settings as startup on the FreeWili.
+
+        Notes: Settings are unstable as of v54 firmware. Subject to change in future firmware versions.
+
+        Arguments:
+        ----------
+            processor: FreeWiliProcessorType
+                Processor to use.
+
+        Returns:
+        -------
+            Result[str, str]:
+                Ok(str) if the command was sent successfully, Err(str) if not.
+        """
+        match self.get_serial_from(processor):
+            case Ok(serial):
+                return serial.set_settings_as_startup()
+            case Err(msg):
+                return Err(msg)
+            case _:
+                raise RuntimeError("Missing case statement")
+
+    def set_system_sounds(
+        self,
+        enable: bool,
+        processor: FreeWiliProcessorType = FreeWiliProcessorType.Display,
+    ) -> Result[str, str]:
+        """Set the system sounds on the FreeWili.
+
+        Arguments:
+        ----------
+            enable: bool
+                Whether to enable or disable system sounds.
+            processor: FreeWiliProcessorType
+                Processor to use.
+
+        Returns:
+        -------
+            Result[str, str]:
+                Ok(str) if the command was sent successfully, Err(str) if not.
+        """
+        match self.get_serial_from(processor):
+            case Ok(serial):
+                return serial.set_system_sounds(enable)
             case Err(msg):
                 return Err(msg)
             case _:

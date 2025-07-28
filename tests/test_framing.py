@@ -108,7 +108,7 @@ def test_response_frame_different_types() -> None:
     assert std_frame.rf_type_data == "cmd"
 
     # Real I2C Read response frame v43
-    response_frame = ResponseFrame.from_raw(r"[i\r 1831A98807457841 0 3F 1]", strict=False).expect(
+    response_frame = ResponseFrame.from_raw(r"[i\r 1831A98807457841 0 3F 1]", strict=True).expect(
         "Failed to decode frame"
     )
     assert response_frame.rf_type == ResponseFrameType.Standard
@@ -126,7 +126,7 @@ def test_response_frame_different_types() -> None:
     )
 
     # Real I2C Poll response frame v43
-    response_frame = ResponseFrame.from_raw(r"[i\p 1831A98807457841 16 2 30 6B 1]", strict=False).expect(
+    response_frame = ResponseFrame.from_raw(r"[i\p 1831A98807457841 16 2 30 6B 1]", strict=True).expect(
         "Failed to decode frame"
     )
     assert response_frame.rf_type == ResponseFrameType.Standard
@@ -140,7 +140,7 @@ def test_response_frame_different_types() -> None:
     assert response_frame.response_as_bytes().unwrap() == bytes([2, 0x30, 0x6B])
 
     # Real I2C Poll response no hardware v43
-    response_frame = ResponseFrame.from_raw(r"[i\p 1831A98807457841 2 0 1]", strict=False).expect(
+    response_frame = ResponseFrame.from_raw(r"[i\p 1831A98807457841 2 0 1]", strict=True).expect(
         "Failed to decode frame"
     )
     assert response_frame.rf_type == ResponseFrameType.Standard
@@ -156,6 +156,18 @@ def test_response_frame_different_types() -> None:
             0,
         ]
     )
+
+    # RTC year response frame v54
+    response_frame = ResponseFrame.from_raw(r"[z\t\y 18565F820C845726 17 25 1]", strict=True).expect(
+        "Failed to decode RTC year frame"
+    )
+    assert response_frame.rf_type == ResponseFrameType.Standard
+    assert response_frame.rf_type_data == r"z\t\y"
+    assert response_frame.timestamp == 1753694117067773734
+    assert response_frame.seq_number == 17
+    assert response_frame.response == "25"
+    assert response_frame.success == 1
+    assert response_frame.is_ok()
 
 
 if __name__ == "__main__":

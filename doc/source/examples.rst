@@ -21,6 +21,15 @@ Upload files to the first Free-Wili device.
    :language: python
    :linenos:
 
+Device Settings
+---------------
+
+Configure FreeWili device settings including system sounds, default configurations, and real-time clock.
+
+.. literalinclude:: ../../examples/settings.py
+   :language: python
+   :linenos:
+
 FPGA Configuration
 ------------------
 

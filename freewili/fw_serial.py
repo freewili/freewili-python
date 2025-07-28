@@ -4,6 +4,7 @@ This module provides functionality to find and control FreeWili boards.
 """
 
 import dataclasses
+import datetime
 import functools
 import pathlib
 import platform
@@ -136,7 +137,7 @@ class FreeWiliSerial:
                 When blocking is True and time elapsed is greater than timeout_sec
         """
         if self.serial_port.is_open() and restore_menu:
-            self.serial_port.send(CMD_ENABLE_MENU)
+            self._set_menu_enabled(True)
         self.serial_port.close()
 
     def is_open(self) -> bool:
@@ -186,9 +187,6 @@ class FreeWiliSerial:
                 was_open = self.is_open()
                 self.open().expect("Failed to open")
                 self._set_menu_enabled(enable_menu)
-                # if self.last_menu_option != enable_menu:
-                #     self._set_menu_enabled(enable_menu)
-                #     self.last_menu_option = enable_menu
                 try:
                     result = func(self, *args, **kwargs)
                     # self._set_menu_enabled(True)
@@ -221,22 +219,10 @@ class FreeWiliSerial:
         -------
             None
         """
-        # self.reader.clear()
-        self.serial_port.send(CMD_ENABLE_MENU if enabled else CMD_DISABLE_MENU)
-        # if enabled:
-        #     self.serial_port.send("", True, "\r\n")
-
-        # Wait for menu to be enabled and receive some data
-        timeout_sec: float = 2.0
+        self.serial_port.send(f"q\nq\n{CMD_ENABLE_MENU.decode('ascii')}" if enabled else CMD_DISABLE_MENU)
         if enabled:
-            start = time.time()
-            current = time.time()
-            while current - start < timeout_sec and self.serial_port.data_queue.empty():
-                current = time.time()
-                time.sleep(0.001)
-            if current - start >= timeout_sec:
-                raise TimeoutError(f"Failed to enable menus in {timeout_sec} seconds")
-            time.sleep(0.05)
+            self._wait_for_data(2.0, "Enter Letter:").expect("Failed to enable menu!")
+            time.sleep(0.01)  # Give some time for the menu to be enabled
 
     def _wait_for_response_frame(self, timeout_sec: float = 6.0) -> Result[ResponseFrame, str]:
         """Wait for a response frame after sending a command.
@@ -1632,12 +1618,201 @@ class FreeWiliSerial:
 
         return Ok(FileSystemContents(cwd=cwd, contents=items))
 
+    def _wait_for_data(self, timeout: float, regex_pattern: str) -> Result[str, str]:
+        """Wait for data to be available from the serial port.
 
-"""
-File System (14381056 bytes free of 14393344)
-/ directory contents
-file  settings.txt  0 bytes
-dir   scripts
-dir   data
-dir   radio
-"""
+        Returns:
+        -------
+            Result[str, str]:
+                Ok(str) if data was received successfully, Err(str) if not.
+        """
+        start = time.time()
+        while (time.time() - start) < timeout:
+            # print("DEBUG: Waiting for data...")
+            try:
+                data = self.serial_port.data_queue.get_nowait().decode("ascii", errors="ignore")
+                # print("DEBUG: Received data:", data.strip())
+                if res := re.search(regex_pattern, data):
+                    return Ok(res.group().strip())
+            except Empty:
+                time.sleep(0.001)  # Sleep briefly to avoid busy waiting
+                continue
+        return Err(f"Timeout ({timeout:<.1f}s) waiting for data")
+
+    @needs_open(True)
+    def get_rtc(self) -> Result[tuple[datetime.datetime, int], str]:
+        """Get the RTC (Real-Time Clock) from the FreeWili.
+
+        Notes: Settings are unstable as of v54 firmware. Subject to change in future firmware versions.
+
+        Arguments:
+        ----------
+            None
+
+        Returns:
+        -------
+            Result[tuple[datetime.datetime, int], str]:
+                Ok(tuple[datetime.datetime, int]) if the command was sent successfully, Err(str) if not.
+        """
+
+        def extract_int(text: str) -> int:
+            """Extract an integer from a string."""
+            if match := re.search(r"\[(\d+)\]", text):
+                value = int(match.group(1))
+                return value
+            return -999
+
+        self._empty_all()
+        self.serial_port.send("z")
+        self._wait_for_data(1.0, r"Enter Letter").expect("Failed to get settings menu")
+        self.serial_port.send("t")
+        self._wait_for_data(1.0, r"Enter Letter").expect("Failed to get settings menu")
+        self.serial_port.send("")
+        year = self._wait_for_data(1.0, r"Year.*").expect("Failed to get RTC year")
+        self.serial_port.send("")
+        month = self._wait_for_data(1.0, r"Month.*").expect("Failed to get RTC month")
+        self.serial_port.send("")
+        day = self._wait_for_data(1.0, r"Day.*").expect("Failed to get RTC day")
+        # day_of_week = self._wait_for_data(1.0, r"Day of Week").expect("Failed to get RTC day of week")
+        self.serial_port.send("")
+        hour = self._wait_for_data(1.0, r"Hour.*").expect("Failed to get RTC hour")
+        self.serial_port.send("")
+        minute = self._wait_for_data(1.0, r"Minute.*").expect("Failed to get RTC minute")
+        self.serial_port.send("")
+        second = self._wait_for_data(1.0, r"Second.*").expect("Failed to get RTC second")
+        self.serial_port.send("")
+        trim = self._wait_for_data(1.0, r"Trim.*").expect("Failed to get RTC trim")
+        return Ok(
+            (
+                datetime.datetime(
+                    extract_int(year),
+                    extract_int(month),
+                    extract_int(day),
+                    extract_int(hour),
+                    extract_int(minute),
+                    extract_int(second),
+                    0,
+                    None,  # Use None for timezone to indicate naive datetime
+                ),
+                extract_int(trim),
+            )
+        )
+
+    @needs_open()
+    def set_rtc(self, dt: datetime.datetime, trim: int | None = None) -> Result[str, str]:
+        """Set the RTC (Real-Time Clock) on the FreeWili.
+
+        Notes: Settings are unstable as of v54 firmware. Subject to change in future firmware versions.
+
+        Arguments:
+        ----------
+            dt: datetime
+                The datetime to set the RTC to.
+            trim: int | None
+                The trim value to set. (-127 - 127). If None, no trim is set.
+
+        Returns:
+        -------
+            Result[str, str]:
+                Ok(str) if the command was sent successfully, Err(str) if not.
+        """
+        days = (
+            "Monday",
+            "Tuesday",
+            "Wednesday",
+            "Thursday",
+            "Friday",
+            "Saturday",
+            "Sunday",
+        )
+        values = [
+            (dt.year % 2000, "y"),
+            (dt.month, "n"),
+            (dt.day, "d"),
+            (dt.hour, "h"),
+            (dt.minute, "m"),
+            (days[dt.weekday()], "w"),  # 0=Monday, 6=Sunday
+            (dt.second, "s"),
+        ]
+        self._empty_all()
+        for value, letter in values:
+            # We need q at the end because menu reset doesn't reset the submenu here
+            cmd = f"z\nt\n{letter}\n{value}\nq\n"
+            self.serial_port.send(cmd)
+            # Reset to the top level menu
+            self._set_menu_enabled(False)
+        if trim is not None:
+            cmd = f"z\nt\nt\n{trim}"
+            self.serial_port.send(cmd, delay_sec=0.05)
+            res = self._handle_final_response_frame()
+            if res.is_err():
+                return res
+        return Ok("RTC set successfully")
+
+    @needs_open(True)
+    def set_settings_to_default(self) -> Result[str, str]:
+        """Set the settings to default on the FreeWili.
+
+        Notes: Settings are unstable as of v54 firmware. Subject to change in future firmware versions.
+
+        Arguments:
+        ----------
+            None
+
+        Returns:
+        -------
+            Result[str, str]:
+                Ok(str) if the command was sent successfully, Err(str) if not.
+        """
+        time.sleep(0.1)
+        self._empty_all()
+        cmd = "z\nz\nq"
+        self.serial_port.send(cmd)
+        return self._wait_for_data(3.0, r"Done!")
+
+    @needs_open(True)
+    def set_settings_as_startup(self) -> Result[str, str]:
+        """Set the settings as startup on the FreeWili.
+
+        Notes: Settings are unstable as of v54 firmware. Subject to change in future firmware versions.
+
+        Arguments:
+        ----------
+            None
+
+        Returns:
+        -------
+            Result[str, str]:
+                Ok(str) if the command was sent successfully, Err(str) if not.
+        """
+        self._empty_all()
+        cmd = "z\ns\nq\n"
+        self.serial_port.send(cmd)
+        return self._wait_for_data(3.0, r"Done!")
+
+    @needs_open(True)
+    def set_system_sounds(self, enable: bool) -> Result[str, str]:
+        """Set the system sounds on the FreeWili.
+
+        Notes: Settings are unstable as of v54 firmware. Subject to change in future firmware versions.
+
+        Arguments:
+        ----------
+            enable: bool
+                Whether to enable or disable system sounds.
+
+        Returns:
+        -------
+            Result[str, str]:
+                Ok(str) if the command was sent successfully, Err(str) if not.
+        """
+        self._empty_all()
+        self.serial_port.send("z")
+        self._wait_for_data(1.0, r"Enter Letter:").expect("Failed to get settings menu 1")
+        time.sleep(0.1)
+        self.serial_port.send("g")
+        self._wait_for_data(1.0, r"Enter Letter:").expect("Failed to get settings menu 2")
+        self.serial_port.send("p")
+        self._wait_for_data(1.0, r"System Sounds Enter Number").expect("Failed to get settings menu 3")
+        self.serial_port.send("1" if enable else "0")
+        return self._wait_for_data(3.0, r"Enter Letter:")

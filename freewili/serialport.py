@@ -384,7 +384,7 @@ class SerialPort(threading.Thread):
             self.rf_event_queue.put(rf_result)
             self._debug_count = 0
         # Match a full response frame
-        while frame := data_buffer.pop_first_match(rb"\[[^\*].*.\d\]\r?\n"):
+        while frame := data_buffer.pop_first_match(rb"\[[^\*0-9].*.\d\]\r?\n"):
             self._debug_print(f"RX Frame: {frame!r}")
             # self._debug_print(f"Buffer len: {data_buffer.available()} {data_buffer.peek()!r}")
             self.rf_queue.put(ResponseFrame.from_raw(frame))

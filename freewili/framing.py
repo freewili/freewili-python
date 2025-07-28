@@ -101,7 +101,7 @@ class ResponseFrame:
         # Seperate the frame, every item is space seperated.
         items = frame.split(" ")
         if len(items) < 5:
-            return Err("Invalid frame contents, not enough items")
+            return Err(f"Invalid frame contents, not enough items: {items}")
         # example I2C: [i\w YXNkZmFzZGY= 4 Invalid 0]
         rf_type = ResponseFrameType.Standard
         if items[0].startswith("*"):
