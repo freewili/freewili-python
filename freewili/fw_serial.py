@@ -61,6 +61,7 @@ class FreeWiliSerial:
         self.serial_port = SerialPort(port, 1000000, name)
         self.last_menu_option: None | bool = None
         self.user_event_callback: None | Callable[[EventType, ResponseFrame, Any], None] = None
+        self._stay_open = stay_open
 
     def __repr__(self) -> str:
         return f"<{str(self)}>"
