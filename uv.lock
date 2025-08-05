@@ -412,7 +412,7 @@ dev = [
 requires-dist = [
     { name = "numpy", specifier = ">=2.2.4" },
     { name = "pillow", specifier = "==11.1.0" },
-    { name = "pyfwfinder", specifier = "==0.0.2" },
+    { name = "pyfwfinder", specifier = "==0.2.0" },
     { name = "pyserial", specifier = "==3.5" },
     { name = "result", git = "https://github.com/montasaurus/result" },
     { name = "typing-extensions", specifier = "==4.12.2" },
@@ -1041,18 +1041,18 @@ wheels = [
 
 [[package]]
 name = "pyfwfinder"
-version = "0.0.2"
+version = "0.2.0"
 source = { registry = "https://pypi.org/simple" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/39/ff/39e448d5bc5c7645ad68c4cbd81243a25e939ca8f8a3b01a9f935a8c4d95/pyfwfinder-0.0.2-cp310-cp310-macosx_10_15_universal2.whl", hash = "sha256:2433a8fa820ae84356b2af36a21ac2a840895fd78765b3e87e3e30fa933ae481", size = 147487, upload-time = "2025-04-29T13:59:54.248Z" },
-    { url = "https://files.pythonhosted.org/packages/4e/af/5fa32bafbe358a2e820cddcd1f1c729208581be5c7e8b3f80a0b4c58c576/pyfwfinder-0.0.2-cp310-cp310-manylinux_2_34_x86_64.whl", hash = "sha256:94cbb8bc807671842db745a8eb0ee9c4f50ea173809155687f4e4907bfebdd09", size = 217004, upload-time = "2025-04-29T13:59:55.302Z" },
-    { url = "https://files.pythonhosted.org/packages/e0/39/5e5a34d7e629b7184d2513f6f41efce58d773e2e6d2863cef53ed64008dd/pyfwfinder-0.0.2-cp310-cp310-win_amd64.whl", hash = "sha256:8a32c184ca0705c5767a29da9b5c14d50be69fe0151fec5a8bca8f50e018ac17", size = 133490, upload-time = "2025-04-29T13:59:56.21Z" },
-    { url = "https://files.pythonhosted.org/packages/05/8c/d98be543defdf088abe9c33fcea58a54e29a98be424bcb5d2e524564e68c/pyfwfinder-0.0.2-cp311-cp311-macosx_10_15_universal2.whl", hash = "sha256:59e343a2a552859b97bb23dca7b06a1b30b1b552b9fcaf898937680f88c8ce63", size = 148444, upload-time = "2025-04-29T13:59:57.388Z" },
-    { url = "https://files.pythonhosted.org/packages/54/f3/e9d53117a61b2dd88e50d24d187b0e942276c6484c608c3343954883e1f3/pyfwfinder-0.0.2-cp311-cp311-manylinux_2_34_x86_64.whl", hash = "sha256:1da12f0e6d1754bd7f8caf83a0be5b078f6192c683f0474b25d0a70389df0361", size = 217349, upload-time = "2025-04-29T13:59:58.266Z" },
-    { url = "https://files.pythonhosted.org/packages/0d/61/885a0b0069fdd43b0db40cab30afea12619658b2a5c538c8120edd3da94a/pyfwfinder-0.0.2-cp311-cp311-win_amd64.whl", hash = "sha256:69805fcf7538b5e27c191e2d7ca0a6b0fd29b6f2848d1f92adbc7238d668f89b", size = 133863, upload-time = "2025-04-29T13:59:59.318Z" },
-    { url = "https://files.pythonhosted.org/packages/50/e9/cd8335df6f0b0a5898534ab80617b413bf120837feb477a6cb916df8af9b/pyfwfinder-0.0.2-cp312-abi3-macosx_10_15_universal2.whl", hash = "sha256:1602b9c3b81c8351c04ca9e3672e0f3f5e9fe132af3830fdacf9754c615e87d5", size = 141372, upload-time = "2025-04-29T14:00:00.647Z" },
-    { url = "https://files.pythonhosted.org/packages/25/2c/444e6b9e21038d1ba150d2ffaf468e431f21e2a552122d934c297cd7b9d7/pyfwfinder-0.0.2-cp312-abi3-manylinux_2_34_x86_64.whl", hash = "sha256:dceb06a4945b52ecd85fa662faf680d7bdc8fb4efa4956ea790c862d2bc0b2ea", size = 213422, upload-time = "2025-04-29T14:00:01.675Z" },
-    { url = "https://files.pythonhosted.org/packages/4a/10/8d7b72c63fa304628c9de13319be3086e0500ddc2df8b3227746fd32d808/pyfwfinder-0.0.2-cp312-abi3-win_amd64.whl", hash = "sha256:5c150ffca898e58352656d66f9bdd3be20c1b529493cfb2d48ed6ed4b2141936", size = 132236, upload-time = "2025-04-29T14:00:02.739Z" },
+    { url = "https://files.pythonhosted.org/packages/eb/41/f30f75454c46c5928efb745b1dd80ca1765539ccfad6d714d9178e90b843/pyfwfinder-0.2.0-cp310-cp310-macosx_10_15_universal2.whl", hash = "sha256:e65f68a98df2b07d9c6e7d89a2d6416425d6bc0c77c3e9a2dd466fe826339729", size = 151742, upload-time = "2025-08-05T15:02:50.786Z" },
+    { url = "https://files.pythonhosted.org/packages/18/73/a2572489374e15f757f88ce6aeb1bc5b1ca67a32722e6cf47cfad0bcdf56/pyfwfinder-0.2.0-cp310-cp310-manylinux_2_34_x86_64.whl", hash = "sha256:a8b587dab0cc9a7d75f350fd373595ee825fb0bb2dd40ec8c93e8fc18f5734e2", size = 236821, upload-time = "2025-08-05T15:02:52.49Z" },
+    { url = "https://files.pythonhosted.org/packages/60/51/a0d45560eaff8acadbb42841f8e07295fad0a2d4e990641a7be20df8da36/pyfwfinder-0.2.0-cp310-cp310-win_amd64.whl", hash = "sha256:32fd9e975a0534ae1766609fc8e4646abd0260f8fecbe1fef4937a82c15b9cdb", size = 140071, upload-time = "2025-08-05T15:02:53.485Z" },
+    { url = "https://files.pythonhosted.org/packages/92/6b/e397c47a157a541e37576f0bb71ee8bb6bb8d8c152cfed35a40f7a760049/pyfwfinder-0.2.0-cp311-cp311-macosx_10_15_universal2.whl", hash = "sha256:0a95bc0fd0412954f9d3c47e773b3544849f5e46cbc725a57d1368fcb6f5af61", size = 152644, upload-time = "2025-08-05T15:02:54.741Z" },
+    { url = "https://files.pythonhosted.org/packages/e4/9d/eda7757df56a436fb015837c4ec99230ddaa4f8ff69f40dc4472ea273c2a/pyfwfinder-0.2.0-cp311-cp311-manylinux_2_34_x86_64.whl", hash = "sha256:080787f48f781479190695e3756a63c1abd90d72593abdfbb7469083ad37f135", size = 237115, upload-time = "2025-08-05T15:02:55.832Z" },
+    { url = "https://files.pythonhosted.org/packages/cd/59/bdb89fe69dca2350a0580c9fdbc7dcc9ec001e0668786f070630a179c204/pyfwfinder-0.2.0-cp311-cp311-win_amd64.whl", hash = "sha256:9f90483f1ff868d46dbf6b59c6ade21fe3c1e954b46eac036701f65f2b30ba0e", size = 140344, upload-time = "2025-08-05T15:02:56.899Z" },
+    { url = "https://files.pythonhosted.org/packages/42/60/167a264887144eaa1cd738283f812b648cd61fdd6365efd37aa80f3baf59/pyfwfinder-0.2.0-cp312-abi3-macosx_10_15_universal2.whl", hash = "sha256:c962b86aafee15967caa31eafff3ba0799205cd37cbb2d5e5d882ebd232ea231", size = 145486, upload-time = "2025-08-05T15:02:58.242Z" },
+    { url = "https://files.pythonhosted.org/packages/c2/88/70c82c94dea6a66c387e7f9f64ace03c16492d2d8d3b308647fda1938a39/pyfwfinder-0.2.0-cp312-abi3-manylinux_2_34_x86_64.whl", hash = "sha256:4480a68b67ca536f15da34240bdfb5ee3a695e0d7c27eae84cb420f78045e9fb", size = 232902, upload-time = "2025-08-05T15:02:59.37Z" },
+    { url = "https://files.pythonhosted.org/packages/dd/cf/984b314136c3e357832efdedfe4d5e58153a3a02df8bebaacc505bfe4a51/pyfwfinder-0.2.0-cp312-abi3-win_amd64.whl", hash = "sha256:fec0a882db30c7e0bb0f59370e01036bf6fe096b4e38086c25da2a9035958ce0", size = 138944, upload-time = "2025-08-05T15:03:00.398Z" },
 ]
 
 [[package]]

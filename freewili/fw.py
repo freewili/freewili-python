@@ -7,8 +7,6 @@ import sys
 from dataclasses import dataclass
 from typing import Any, Callable, List
 
-import serial
-
 if sys.version_info >= (3, 11):
     from typing import Self
 else:
@@ -36,13 +34,12 @@ class FreeWili:
     def __init__(self, device: fwf.FreeWiliDevice):
         self.device = device
         self._stay_open = False
-        self.is_winky = False
 
         self._main_serial: None | FreeWiliSerial = None
         self._display_serial: None | FreeWiliSerial = None
 
     def __str__(self) -> str:
-        return f"Free-Wili {self.device.serial}"
+        return f"{self.device.name} {self.device.serial} ({self.device.device_type.name})"
 
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__}: {self.device.serial}>"
@@ -92,8 +89,11 @@ class FreeWili:
         -------
             None
         """
-        if self.is_winky:
-            return None  # Winky does not have USB devices like FreeWili
+        if (self.device.device_type == fwf.DeviceType.UF2) and (processor_type == FreeWiliProcessorType.Main):
+            # Special case for the DefCon 2024/2025 badge, where the main processor is in UF2 mode.
+            devs = self.device.get_usb_devices(fwf.USBDeviceType.MassStorage)
+            if devs:
+                return devs[0]
         match processor_type:
             case FreeWiliProcessorType.Main:
                 devs = self.device.get_usb_devices(fwf.USBDeviceType.SerialMain)
@@ -172,8 +172,6 @@ class FreeWili:
             None | FreeWiliSerial:
                 FreeWiliSerial on success, None otherwise.
         """
-        if self.is_winky:
-            return self._main_serial  # Winky does not have a main serial port like FreeWili
         if not self._main_serial and self.main and self.main.port:
             self._main_serial = FreeWiliSerial(self.main.port, self._stay_open, "Main: " + str(self))
         if self._main_serial:
@@ -212,8 +210,14 @@ class FreeWili:
             Result[FreeWiliSerial, str]:
                 Ok(FreeWiliSerial) on success, Err(str) otherwise.
         """
-        if self.is_winky:
-            return Ok(self.main_serial)
+        if self.device.device_type in (fwf.DeviceType.DefCon2024Badge, fwf.DeviceType.DefCon2025FwBadge):
+            if processor_type in (FreeWiliProcessorType.Main, FreeWiliProcessorType.Display):
+                if self.main_serial:
+                    return Ok(self.main_serial)
+                else:
+                    return Err("Main serial isn't valid")
+            else:
+                return Err(f"{processor_type} isn't a valid FreeWiliSerial type")
         match processor_type:
             case FreeWiliProcessorType.Main:
                 if self.main_serial:
@@ -1734,50 +1738,6 @@ class FileMap:
         if platform.system().lower() == "windows":
             fpath_str = fpath_str.replace("\\", "/")
         return fpath_str
-
-
-class Winky(FreeWili):
-    """Free-Wili Winky device used to access serial functionality."""
-
-    def __init__(self, serial_port: str, name: str = "Winky"):
-        super().__init__(None)
-        self.serial_port = serial_port
-        self.name = name
-        self.is_winky = True
-
-        self._main_serial: FreeWiliSerial = FreeWiliSerial(serial_port)
-
-    @classmethod
-    def find_all(cls) -> tuple[Self, ...]:
-        """Find all Free-Wili devices attached to the host.
-
-        Parameters:
-        ------------
-            None
-
-        Returns:
-        ---------
-            tuple[FreeWili, ...]:
-                Tuple of FreeWili devices.
-
-        Raises:
-        -------
-            None
-        """
-        devices = []
-        # Winky support
-        for port in serial.tools.list_ports.comports():
-            if port.vid != 0x093C and port.pid != 0x2056:
-                continue
-
-            devices.append(cls(port.device))
-        return tuple(devices)
-
-    def __str__(self) -> str:
-        return f"Free-Wili {self.name}"
-
-    def __repr__(self) -> str:
-        return f"<{self.__class__.__name__}: {self.name}>"
 
 
 if __name__ == "__main__":
