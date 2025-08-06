@@ -15,10 +15,14 @@ def test_hw_board_leds() -> None:
 
     try:
         for led_num in range(7):
-            assert device.set_board_leds(led_num, 50, 50, 50).expect("Failed to set LED") != ""
+            assert device.set_board_leds(led_num, 50, 50, led_num * 10).expect("Failed to set LED") != "", (
+                f"Failed to set LED {led_num}"
+            )
 
         for led_num in range(7):
-            assert device.set_board_leds(led_num, 0, 0, 0).expect("Failed to set LED") != ""
+            assert device.set_board_leds(led_num, 0, 0, 0).expect("Failed to set LED") != "", (
+                f"Failed to set LED {led_num}"
+            )
     finally:
         device.close()
 

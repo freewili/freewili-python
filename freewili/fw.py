@@ -94,6 +94,14 @@ class FreeWili:
             devs = self.device.get_usb_devices(fwf.USBDeviceType.MassStorage)
             if devs:
                 return devs[0]
+        if self.device.device_type in (fwf.DeviceType.DefCon2024Badge, fwf.DeviceType.DefCon2025FwBadge):
+            if processor_type == FreeWiliProcessorType.Main:
+                # Special case for the DefCon 2024/2025 badge, where the main processor is in UF2 mode.
+                devs = self.device.get_usb_devices(fwf.USBDeviceType.SerialMain)
+                if devs:
+                    return devs[0]
+            else:
+                return None
         match processor_type:
             case FreeWiliProcessorType.Main:
                 devs = self.device.get_usb_devices(fwf.USBDeviceType.SerialMain)
@@ -172,8 +180,11 @@ class FreeWili:
             None | FreeWiliSerial:
                 FreeWiliSerial on success, None otherwise.
         """
+        is_badge: bool = False
+        if self.main and self.device.device_type in (fwf.DeviceType.DefCon2024Badge, fwf.DeviceType.DefCon2025FwBadge):
+            is_badge = True
         if not self._main_serial and self.main and self.main.port:
-            self._main_serial = FreeWiliSerial(self.main.port, self._stay_open, "Main: " + str(self))
+            self._main_serial = FreeWiliSerial(self.main.port, self._stay_open, "Main: " + str(self), is_badge)
         if self._main_serial:
             self._main_serial.stay_open = self._stay_open
         return self._main_serial

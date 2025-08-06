@@ -54,14 +54,12 @@ CMD_ENABLE_MENU = b"\x03"
 class FreeWiliSerial:
     """Class representing a serial connection to a FreeWili."""
 
-    # The default number of bytes to write/read at a time
-    DEFAULT_SEGMENT_SIZE: int = 8
-
-    def __init__(self, port: str, stay_open: bool = False, name: str = "") -> None:
+    def __init__(self, port: str, stay_open: bool = False, name: str = "", is_badge: bool = False) -> None:
         self.serial_port = SerialPort(port, 1000000, name)
         self.last_menu_option: None | bool = None
         self.user_event_callback: None | Callable[[EventType, ResponseFrame, Any], None] = None
         self._stay_open = stay_open
+        self.is_badge = is_badge
 
     def __repr__(self) -> str:
         return f"<{str(self)}>"
@@ -412,9 +410,14 @@ class FreeWiliSerial:
         """
         # k) GUI Functions
         # s) Set Board LED [25 100 100 100]
-        cmd = f"g\ns\n{io} {red} {green} {blue}"
-
-        self.serial_port.send(cmd)
+        if self.is_badge:
+            self.serial_port.send("g\ng")
+            self._handle_final_response_frame()
+            cmd = f"s\n{io} {red} {green} {blue}\nq\nq"
+            self.serial_port.send(cmd)
+        else:
+            cmd = f"g\ns\n{io} {red} {green} {blue}"
+            self.serial_port.send(cmd)
         return self._handle_final_response_frame()
 
     @needs_open()
@@ -592,6 +595,9 @@ class FreeWiliSerial:
         # l) Show FWI Image [pip_boy.fwi]
         self._empty_all()
         cmd = f"g\nl\n{fwi_path}"
+        if self.is_badge:
+            return Err("TODO")
+            cmd = "g\n" + cmd + "\nq\nq"
         self.serial_port.send(cmd)
         return self._handle_final_response_frame()
 
@@ -612,7 +618,14 @@ class FreeWiliSerial:
         # t) Reset Display
         self._empty_all()
         cmd = "g\nt"
-        self.serial_port.send(cmd)
+        if self.is_badge:
+            self.serial_port.send("g\ng")
+            self._handle_final_response_frame()
+            cmd = "g\nt\nq\nq"
+            self.serial_port.send(cmd)
+        else:
+            cmd = "g\nt"
+            self.serial_port.send(cmd)
         return self._handle_final_response_frame()
 
     @needs_open()
@@ -632,8 +645,14 @@ class FreeWiliSerial:
         # k) GUI Functions
         # p) Show Text Display
         self._empty_all()
-        cmd = f"g\np\n{text}"
-        self.serial_port.send(cmd)
+        if self.is_badge:
+            self.serial_port.send("g\ng")
+            self._handle_final_response_frame()
+            cmd = f"p\n{text}\nq\nq"
+            self.serial_port.send(cmd)
+        else:
+            cmd = f"g\np\n{text}"
+            self.serial_port.send(cmd)
         return self._handle_final_response_frame()
 
     @needs_open()
@@ -653,8 +672,14 @@ class FreeWiliSerial:
         # u) Read All Buttons
         button_colors = [ButtonColor.White, ButtonColor.Yellow, ButtonColor.Green, ButtonColor.Blue, ButtonColor.Red]
         self._empty_all()
-        cmd = "g\nu"
-        self.serial_port.send(cmd)
+        if self.is_badge:
+            self.serial_port.send("g\ng")
+            self._handle_final_response_frame()
+            cmd = "u\nq\nq"
+            self.serial_port.send(cmd)
+        else:
+            cmd = "g\nu"
+            self.serial_port.send(cmd)
         match self._wait_for_response_frame():
             case Ok(rf):
                 if not rf.is_ok():
@@ -742,6 +767,8 @@ class FreeWiliSerial:
             interval_ms = 100
         self._empty_all()
         cmd = f"g\no\n{0 if not enable else int(interval_ms)}"
+        if self.is_badge:
+            cmd = "g\n" + cmd + "\nq\nq"
         self.serial_port.send(cmd)
         return self._handle_final_response_frame()
 
