@@ -109,7 +109,12 @@ class FreeWili:
                     return find_by_location_id(3)
                 else:
                     return None
-            case fwf.DeviceType.DefCon2024Badge | fwf.DeviceType.DefCon2025FwBadge | fwf.DeviceType.Winky:
+            case (
+                fwf.DeviceType.DefCon2024Badge
+                | fwf.DeviceType.DefCon2025FwBadge
+                | fwf.DeviceType.Winky
+                | fwf.DeviceType.UF2
+            ):
                 # We only ever have one device on stand-alone devices.
                 if processor_type == FreeWiliProcessorType.Main:
                     return self.usb_devices[0]
