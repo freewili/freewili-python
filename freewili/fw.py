@@ -89,63 +89,34 @@ class FreeWili:
         -------
             None
         """
-        if (self.device.device_type == fwf.DeviceType.UF2) and (processor_type == FreeWiliProcessorType.Main):
-            # Special case for the DefCon 2024/2025 badge, where the main processor is in UF2 mode.
-            devs = self.device.get_usb_devices(fwf.USBDeviceType.MassStorage)
-            if devs:
-                return devs[0]
-        if self.device.device_type in (fwf.DeviceType.DefCon2024Badge, fwf.DeviceType.DefCon2025FwBadge):
-            if processor_type == FreeWiliProcessorType.Main:
-                # Special case for the DefCon 2024/2025 badge, where the main processor is in UF2 mode.
-                devs = self.device.get_usb_devices(fwf.USBDeviceType.SerialMain)
-                if devs:
-                    return devs[0]
-            else:
-                return None
-        match processor_type:
-            case FreeWiliProcessorType.Main:
-                devs = self.device.get_usb_devices(fwf.USBDeviceType.SerialMain)
-                if devs:
-                    return devs[0]
-            case FreeWiliProcessorType.Display:
-                devs = self.device.get_usb_devices(fwf.USBDeviceType.SerialDisplay)
-                if devs:
-                    return devs[0]
-            case FreeWiliProcessorType.FTDI:
-                devs = self.device.get_usb_devices(fwf.USBDeviceType.FTDI)
-                if devs:
-                    return devs[0]
-            case FreeWiliProcessorType.ESP32:
-                devs = self.device.get_usb_devices(fwf.USBDeviceType.ESP32)
-                if devs:
-                    return devs[0]
-        # Get the processor by location
-        # TODO: MAC will be broke here
-        if processor_type in (FreeWiliProcessorType.Main, FreeWiliProcessorType.Display):
+
+        def find_by_location_id(location_id: int) -> fwf.USBDevice | None:
+            """Helper function for finding USB devices by location ID."""
             for usb_device in self.usb_devices:
-                if (
-                    processor_type == FreeWiliProcessorType.Main
-                    # and usb_device.kind == fwf.USBDeviceType.MassStorage
-                    and usb_device.location == 1
-                ):
+                if usb_device.kind == fwf.USBDeviceType.Hub:
+                    continue
+                if usb_device.location == location_id:
                     return usb_device
-                if (
-                    processor_type == FreeWiliProcessorType.Display
-                    # and usb_device.kind == fwf.USBDeviceType.MassStorage
-                    and usb_device.location == 2
-                ):
-                    return usb_device
-        # Legacy support for older VID/PID of Main/Display firmware.
-        if len(self.usb_devices) < 3:
             return None
-        match processor_type:
-            case FreeWiliProcessorType.Main:
-                device = self.usb_devices[0]
-                return device
-            case FreeWiliProcessorType.Display:
-                device = self.usb_devices[1]
-                return self.usb_devices[1]
-        return None
+
+        match self.device.device_type:
+            case fwf.DeviceType.FreeWili:
+                if processor_type == FreeWiliProcessorType.Main:
+                    return find_by_location_id(1)
+                elif processor_type == FreeWiliProcessorType.Display:
+                    return find_by_location_id(2)
+                elif processor_type == FreeWiliProcessorType.FTDI:
+                    return find_by_location_id(3)
+                else:
+                    return None
+            case fwf.DeviceType.DefCon2024Badge | fwf.DeviceType.DefCon2025FwBadge | fwf.DeviceType.Winky:
+                # We only ever have one device on stand-alone devices.
+                if processor_type == FreeWiliProcessorType.Main:
+                    return self.usb_devices[0]
+                else:
+                    return None
+            case _:
+                raise NotImplementedError(f"Device Type {self.device.device_type} is not supported")
 
     @property
     def ftdi(self) -> None | fwf.USBDevice:

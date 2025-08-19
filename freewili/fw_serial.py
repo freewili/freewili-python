@@ -1402,17 +1402,23 @@ class FreeWiliSerial:
         resp = self._wait_for_response_frame()
         if resp.is_err():
             return Err(resp.err())
-        proc_type_regex = re.compile(r"(?:Main|Display)|(?:App version)|(?:\d+)")
+        proc_type_regex = re.compile(r"(?:Main|Display|DEFCON25|Winky|DEFCON24)|(?:App version)|(?:\d+)")
         results = proc_type_regex.findall(resp.unwrap().response)
         if len(results) != 2:
             return Ok(FreeWiliAppInfo(FreeWiliProcessorType.Unknown, 0))
         # New firmware >= 48
         processor = results[0]
         version = results[1]
-        if "Main" in processor:
+        if "main" in processor.lower():
             return Ok(FreeWiliAppInfo(FreeWiliProcessorType.Main, int(version)))
-        elif "Display" in processor:
+        elif "display" in processor.lower():
             return Ok(FreeWiliAppInfo(FreeWiliProcessorType.Display, int(version)))
+        elif "winky" in processor.lower():
+            return Ok(FreeWiliAppInfo(FreeWiliProcessorType.Main, int(version)))
+        elif "defcon24" in processor.lower():
+            return Ok(FreeWiliAppInfo(FreeWiliProcessorType.Main, int(version)))
+        elif "defcon25" in processor.lower():
+            return Ok(FreeWiliAppInfo(FreeWiliProcessorType.Main, int(version)))
         else:
             return Ok(FreeWiliAppInfo(FreeWiliProcessorType.Unknown, int(version)))
 
