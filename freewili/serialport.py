@@ -374,53 +374,111 @@ class SerialPort(threading.Thread):
         assert isinstance(data_buffer, SafeIOFIFOBuffer)
         if data_buffer.available() == 0:
             return
-        # Match a full event response frame
-        while frame := data_buffer.pop_first_match(rb"\[\*.*.\d\]\r?\n"):
+        
+        # First, try to match complete response frames (these have specific patterns)
+        # Match a full event response frame: [*...number]\r?\n
+        while frame := data_buffer.pop_first_match(rb"\[\*.*\d\]\r?\n"):
             self._debug_print(f"RX Event Frame: {frame!r}")
-            # self._debug_print(f"Buffer len: {data_buffer.available()} {data_buffer.peek()!r}")
             rf_result = ResponseFrame.from_raw(frame)
             if rf_result.is_ok():
                 self.rf_events.add(rf_result.unwrap())
             self.rf_event_queue.put(rf_result)
             self._debug_count = 0
-        # Match a full response frame
-        while frame := data_buffer.pop_first_match(rb"\[[^\*0-9].*.\d\]\r?\n"):
+            
+        # Match a full response frame: [letter/command...number]\r?\n  
+        while frame := data_buffer.pop_first_match(rb"\[[a-zA-Z][^\]]*\d\]\r?\n"):
             self._debug_print(f"RX Frame: {frame!r}")
-            # self._debug_print(f"Buffer len: {data_buffer.available()} {data_buffer.peek()!r}")
             self.rf_queue.put(ResponseFrame.from_raw(frame))
             self._debug_count = 0
-        # Match anything else
-        try:
-            # add anything before [ to the data queue
-            start, end = data_buffer.contains(rb"\[")
-            if start > 0:
-                data = data_buffer.read(start)
-                self._debug_print(f"RX Data: {len(data)}: {self._debug_count}: {data!r}")
-                self.data_queue.put(data)
-                self._debug_count += len(data)
-        except ValueError:
-            pass
-
-        # At this point we should be at the start of a frame
+        
+        # After removing all complete frames, handle remaining data in the buffer
         data_len = data_buffer.available()
-        data = data_buffer.peek(data_len)
-        # If we only have a single byte and it's a [, we are done
-        if data_len == 1 and data == b"[":
+        if data_len == 0:
             return
-        if data_len == 2 and data == b"[*":
-            return
-        if data_len >= 3:
-            try:
-                # [*f or [a\
-                _start, _end = data_buffer.contains(rb"(\[\*)|(\[.\\)|(\[. )")
-                # This is probably a start of a frame, do nothing
+            
+        # Look at the beginning of the buffer to determine what to do
+        peek_size = min(data_len, 100)
+        data = data_buffer.peek(peek_size)
+        
+        # Check for partial frame patterns at the very beginning
+        if data.startswith(b'['):
+            # Look for common frame start patterns
+            frame_patterns = [
+                rb'\[\*',  # Event frame start like [*filedl...]
+                rb'\[[a-zA-Z]',  # Command response frame start like [u...]
+            ]
+            
+            is_likely_frame_start = any(data.startswith(pattern) for pattern in frame_patterns)
+            
+            if is_likely_frame_start:
+                # Look for the end of this potential frame
+                frame_end_found = False
+                try:
+                    # Look for frame end patterns
+                    end_pos = data.find(b']\r\n')
+                    if end_pos == -1:
+                        end_pos = data.find(b']\n')
+                    
+                    if end_pos != -1:
+                        frame_end_found = True
+                    elif data_len < 200:  # Small buffer, might be incomplete frame
+                        return  # Wait for more data
+                    # If large buffer but no frame end, treat as binary data
+                except:
+                    is_likely_frame_start = False
+                    
+                if not frame_end_found and data_len > 200:
+                    is_likely_frame_start = False
+                    
+            if not is_likely_frame_start:
+                # This '[' is probably binary data, not a frame start
+                # Find the next potential real frame or take a reasonable chunk
+                next_frame_pos = -1
+                search_limit = min(data_len, 2048)  # Don't search too far
+                
+                for i in range(1, search_limit):
+                    # Look for patterns that are very likely to be real frame starts
+                    if i + 1 < search_limit:
+                        two_byte_pattern = data[i:i+2]
+                        if two_byte_pattern in [b'[*', b'[u', b'[f', b'[g', b'[i', b'[o', b'[s']:
+                            # Additional validation - check if this looks like a real frame
+                            remaining = data[i:i+50] if i+50 < data_len else data[i:]
+                            if b']' in remaining:  # Has potential frame end
+                                next_frame_pos = i
+                                break
+                
+                if next_frame_pos > 0:
+                    # Take data up to the next potential frame
+                    chunk = data_buffer.read(next_frame_pos)
+                else:
+                    # Take a reasonable chunk to avoid memory issues
+                    chunk_size = min(data_len, 8192)  # 8KB chunks for binary data
+                    chunk = data_buffer.read(chunk_size)
+                    
+                if chunk:
+                    self._debug_print(f"RX Binary Data: {len(chunk)} bytes")
+                    self.data_queue.put(chunk)
+                    self._debug_count += len(chunk)
                 return
-            except ValueError:
-                pass
-        data = data_buffer.read(-1)
-        self._debug_print(f"RX Data: {len(data)}: {self._debug_count}: {data!r}")
-        self.data_queue.put(data)
-        self._debug_count += len(data)
+            else:
+                # This looks like a valid frame start, but incomplete
+                # Wait for more data if buffer is small
+                if data_len < 200:
+                    return
+        else:
+            # Data doesn't start with '[', so it's clearly binary data
+            # Take all available data
+            chunk = data_buffer.read(-1)
+            if chunk:
+                self._debug_print(f"RX Binary Data: {len(chunk)} bytes")
+                self.data_queue.put(chunk)
+                self._debug_count += len(chunk)
+            return
+            
+        # If we reach here, we have what looks like a partial frame at the start
+        # For very small buffers, wait for more data
+        if data_len <= 3:
+            return
 
     def send(
         self,
