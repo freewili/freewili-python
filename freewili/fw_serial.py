@@ -1310,7 +1310,7 @@ class FreeWiliSerial:
         rf = rf.ok_value
         fsize: int = 0
         if not rf.is_ok():
-            msg = f"Request to get file {source_file} failed: {rf.unwrap().response}"
+            msg = f"Request to get file {source_file} failed: {rf.response}"
             _user_cb_func(msg)
             return Err(msg)
         else:
