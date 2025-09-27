@@ -1623,6 +1623,283 @@ class FreeWili:
             case _:
                 raise RuntimeError("Missing case statement")
 
+    # WilEye Camera Commands
+    def wileye_take_picture(
+        self,
+        destination: int,
+        filename: str,
+        processor: FreeWiliProcessorType = FreeWiliProcessorType.Main,
+    ) -> Result[str, str]:
+        """Take a picture using the WilEye camera.
+
+        Arguments:
+        ----------
+            destination: int
+                Destination processor (0 = Main, 1 = Display)
+            filename: str
+                Name of the file to save the picture as
+            processor: FreeWiliProcessorType
+                Processor to send the command to (default: Main)
+
+        Returns:
+        -------
+            Result[str, str]:
+                Ok(str) if the command was sent successfully, Err(str) if not.
+        """
+        match self.get_serial_from(processor):
+            case Ok(serial):
+                return serial.wileye_take_picture(destination, filename)
+            case Err(msg):
+                return Err(msg)
+            case _:
+                raise RuntimeError("Missing case statement")
+
+    def wileye_start_recording_video(
+        self,
+        destination: int,
+        filename: str,
+        processor: FreeWiliProcessorType = FreeWiliProcessorType.Main,
+    ) -> Result[str, str]:
+        """Start recording video using the WilEye camera.
+
+        Arguments:
+        ----------
+            destination: int
+                Destination processor (0 = WILEye's SDCard, 1 = FREE-WILi's Main Filesystem, 2 = FREE-WILi's Display Filesystem)
+            filename: str
+                Name of the file to save the video as
+            processor: FreeWiliProcessorType
+                Processor to send the command to (default: Main)
+
+        Returns:
+        -------
+            Result[str, str]:
+                Ok(str) if the command was sent successfully, Err(str) if not.
+        """
+        match self.get_serial_from(processor):
+            case Ok(serial):
+                return serial.wileye_start_recording_video(destination, filename)
+            case Err(msg):
+                return Err(msg)
+            case _:
+                raise RuntimeError("Missing case statement")
+
+    def wileye_stop_recording_video(
+        self,
+        processor: FreeWiliProcessorType = FreeWiliProcessorType.Main,
+    ) -> Result[str, str]:
+        """Stop recording video using the WilEye camera.
+
+        Arguments:
+        ----------
+            processor: FreeWiliProcessorType
+                Processor to send the command to (default: Main)
+
+        Returns:
+        -------
+            Result[str, str]:
+                Ok(str) if the command was sent successfully, Err(str) if not.
+        """
+        match self.get_serial_from(processor):
+            case Ok(serial):
+                return serial.wileye_stop_recording_video()
+            case Err(msg):
+                return Err(msg)
+            case _:
+                raise RuntimeError("Missing case statement")
+
+    def wileye_set_contrast(
+        self,
+        contrast: int,
+        processor: FreeWiliProcessorType = FreeWiliProcessorType.Main,
+    ) -> Result[str, str]:
+        """Set the contrast level for the WilEye camera.
+
+        Arguments:
+        ----------
+            contrast: int
+                Contrast level (percentage, 0-100)
+            processor: FreeWiliProcessorType
+                Processor to send the command to (default: Main)
+
+        Returns:
+        -------
+            Result[str, str]:
+                Ok(str) if the command was sent successfully, Err(str) if not.
+        """
+        match self.get_serial_from(processor):
+            case Ok(serial):
+                return serial.wileye_set_contrast(contrast)
+            case Err(msg):
+                return Err(msg)
+            case _:
+                raise RuntimeError("Missing case statement")
+
+    def wileye_set_saturation(
+        self,
+        saturation: int,
+        processor: FreeWiliProcessorType = FreeWiliProcessorType.Main,
+    ) -> Result[str, str]:
+        """Set the saturation level for the WilEye camera.
+
+        Arguments:
+        ----------
+            saturation: int
+                Saturation level (percentage, 0-100)
+            processor: FreeWiliProcessorType
+                Processor to send the command to (default: Main)
+
+        Returns:
+        -------
+            Result[str, str]:
+                Ok(str) if the command was sent successfully, Err(str) if not.
+        """
+        match self.get_serial_from(processor):
+            case Ok(serial):
+                return serial.wileye_set_saturation(saturation)
+            case Err(msg):
+                return Err(msg)
+            case _:
+                raise RuntimeError("Missing case statement")
+
+    def wileye_set_brightness(
+        self,
+        brightness: int,
+        processor: FreeWiliProcessorType = FreeWiliProcessorType.Main,
+    ) -> Result[str, str]:
+        """Set the brightness level for the WilEye camera.
+
+        Arguments:
+        ----------
+            brightness: int
+                Brightness level (percentage, 0-100)
+            processor: FreeWiliProcessorType
+                Processor to send the command to (default: Main)
+
+        Returns:
+        -------
+            Result[str, str]:
+                Ok(str) if the command was sent successfully, Err(str) if not.
+        """
+        match self.get_serial_from(processor):
+            case Ok(serial):
+                return serial.wileye_set_brightness(brightness)
+            case Err(msg):
+                return Err(msg)
+            case _:
+                raise RuntimeError("Missing case statement")
+
+    def wileye_set_hue(
+        self,
+        hue: int,
+        processor: FreeWiliProcessorType = FreeWiliProcessorType.Main,
+    ) -> Result[str, str]:
+        """Set the hue level for the WilEye camera.
+
+        Arguments:
+        ----------
+            hue: int
+                Hue level (percentage, 0-100)
+            processor: FreeWiliProcessorType
+                Processor to send the command to (default: Main)
+
+        Returns:
+        -------
+            Result[str, str]:
+                Ok(str) if the command was sent successfully, Err(str) if not.
+        """
+        match self.get_serial_from(processor):
+            case Ok(serial):
+                return serial.wileye_set_hue(hue)
+            case Err(msg):
+                return Err(msg)
+            case _:
+                raise RuntimeError("Missing case statement")
+
+    def wileye_set_flash_enabled(
+        self,
+        enabled: bool,
+        processor: FreeWiliProcessorType = FreeWiliProcessorType.Main,
+    ) -> Result[str, str]:
+        """Enable or disable the flash for the WilEye camera.
+
+        Arguments:
+        ----------
+            enabled: bool
+                True to enable flash, False to disable
+            processor: FreeWiliProcessorType
+                Processor to send the command to (default: Main)
+
+        Returns:
+        -------
+            Result[str, str]:
+                Ok(str) if the command was sent successfully, Err(str) if not.
+        """
+        match self.get_serial_from(processor):
+            case Ok(serial):
+                return serial.wileye_set_flash_enabled(enabled)
+            case Err(msg):
+                return Err(msg)
+            case _:
+                raise RuntimeError("Missing case statement")
+
+    def wileye_set_zoom_level(
+        self,
+        zoom_level: int,
+        processor: FreeWiliProcessorType = FreeWiliProcessorType.Main,
+    ) -> Result[str, str]:
+        """Set the zoom level for the WilEye camera.
+
+        Arguments:
+        ----------
+            zoom_level: int
+                Zoom levels [1-4] (1 = no zoom, 4 = max zoom)
+            processor: FreeWiliProcessorType
+                Processor to send the command to (default: Main)
+
+        Returns:
+        -------
+            Result[str, str]:
+                Ok(str) if the command was sent successfully, Err(str) if not.
+        """
+        match self.get_serial_from(processor):
+            case Ok(serial):
+                return serial.wileye_set_zoom_level(zoom_level)
+            case Err(msg):
+                return Err(msg)
+            case _:
+                raise RuntimeError("Missing case statement")
+
+    def wileye_set_resolution(
+        self,
+        resolution_index: int,
+        processor: FreeWiliProcessorType = FreeWiliProcessorType.Main,
+    ) -> Result[str, str]:
+        """Set the resolution for the WilEye camera.
+
+        Arguments:
+        ----------
+            resolution_index: int
+                Resolution index:
+                    0 = 640x480
+                    1 = 1280x720
+                    2 = 1920x1080
+            processor: FreeWiliProcessorType
+                Processor to send the command to (default: Main)
+
+        Returns:
+        -------
+            Result[str, str]:
+                Ok(str) if the command was sent successfully, Err(str) if not.
+        """
+        match self.get_serial_from(processor):
+            case Ok(serial):
+                return serial.wileye_set_resolution(resolution_index)
+            case Err(msg):
+                return Err(msg)
+            case _:
+                raise RuntimeError("Missing case statement")
+
 
 @dataclass(frozen=True)
 class FileMap:

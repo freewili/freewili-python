@@ -1853,3 +1853,205 @@ class FreeWiliSerial:
         self._wait_for_data(1.0, r"System Sounds Enter Number").expect("Failed to get settings menu 3")
         self.serial_port.send("1" if enable else "0")
         return self._wait_for_data(3.0, r"Enter Letter:")
+
+    # WilEye Camera Commands
+    @needs_open()
+    def wileye_take_picture(self, destination: int, filename: str) -> Result[str, str]:
+        """Take a picture using the WilEye camera.
+
+        Arguments:
+        ----------
+            destination: int
+                Destination processor (0 = WILEye's SDCard, 1 = FREE-WILi's Main Filesystem, 2 = FREE-WILi's Display Filesystem)
+            filename: str
+                Name of the file to save the picture as
+
+        Returns:
+        -------
+            Result[str, str]:
+                Ok(str) if the command was sent successfully, Err(str) if not.
+        """
+        self._empty_all()
+        cmd = f"e\\c\\t {destination} {filename}"
+        self.serial_port.send(cmd)
+        return self._handle_final_response_frame()
+
+    @needs_open()
+    def wileye_start_recording_video(self, destination: int, filename: str) -> Result[str, str]:
+        """Start recording video using the WilEye camera.
+
+        Arguments:
+        ----------
+            destination: int
+                Destination processor (0 = WILEye's SDCard, 1 = FREE-WILi's Main Filesystem, 2 = FREE-WILi's Display Filesystem)
+            filename: str
+                Name of the file to save the video as
+
+        Returns:
+        -------
+            Result[str, str]:
+                Ok(str) if the command was sent successfully, Err(str) if not.
+        """
+        self._empty_all()
+        cmd = f"e\\c\\v {destination} {filename}"
+        self.serial_port.send(cmd)
+        return self._handle_final_response_frame()
+
+    @needs_open()
+    def wileye_stop_recording_video(self) -> Result[str, str]:
+        """Stop recording video using the WilEye camera.
+
+        Arguments:
+        ----------
+            None
+
+        Returns:
+        -------
+            Result[str, str]:
+                Ok(str) if the command was sent successfully, Err(str) if not.
+        """
+        self._empty_all()
+        cmd = "e\\c\\s"
+        self.serial_port.send(cmd)
+        return self._handle_final_response_frame()
+
+    @needs_open()
+    def wileye_set_contrast(self, contrast: int) -> Result[str, str]:
+        """Set the contrast level for the WilEye camera.
+
+        Arguments:
+        ----------
+            contrast: int
+                Contrast level (percentage, 0-100)
+
+        Returns:
+        -------
+            Result[str, str]:
+                Ok(str) if the command was sent successfully, Err(str) if not.
+        """
+        self._empty_all()
+        cmd = f"e\\c\\c {contrast}\n"
+        self.serial_port.send(cmd)
+        return self._handle_final_response_frame()
+
+    @needs_open()
+    def wileye_set_saturation(self, saturation: int) -> Result[str, str]:
+        """Set the saturation level for the WilEye camera.
+
+        Arguments:
+        ----------
+            saturation: int
+                Saturation level (percentage, 0-100)
+
+        Returns:
+        -------
+            Result[str, str]:
+                Ok(str) if the command was sent successfully, Err(str) if not.
+        """
+        self._empty_all()
+        cmd = f"e\\c\\i {saturation}\n"
+        self.serial_port.send(cmd)
+        
+        return self._handle_final_response_frame()
+
+    @needs_open()
+    def wileye_set_brightness(self, brightness: int) -> Result[str, str]:
+        """Set the brightness level for the WilEye camera.
+
+        Arguments:
+        ----------
+            brightness: int
+                Brightness level (percentage, 0-100)
+
+        Returns:
+        -------
+            Result[str, str]:
+                Ok(str) if the command was sent successfully, Err(str) if not.
+        """
+        self._empty_all()
+        cmd = f"e\\c\\b {brightness}\n"
+        self.serial_port.send(cmd)
+        
+        return self._handle_final_response_frame()
+
+    @needs_open()
+    def wileye_set_hue(self, hue: int) -> Result[str, str]:
+        """Set the hue level for the WilEye camera.
+
+        Arguments:
+        ----------
+            hue: int
+                Hue level (percentage, 0-100)
+
+        Returns:
+        -------
+            Result[str, str]:
+                Ok(str) if the command was sent successfully, Err(str) if not.
+        """
+        self._empty_all()
+        cmd = f"e\\c\\u {hue}\n"
+        self.serial_port.send(cmd)
+        
+        return self._handle_final_response_frame()
+
+    @needs_open()
+    def wileye_set_flash_enabled(self, enabled: bool) -> Result[str, str]:
+        """Enable or disable the flash for the WilEye camera.
+
+        Arguments:
+        ----------
+            enabled: bool
+                True to enable flash, False to disable
+
+        Returns:
+        -------
+            Result[str, str]:
+                Ok(str) if the command was sent successfully, Err(str) if not.
+        """
+        self._empty_all()
+        cmd = f"e\\c\\l {1 if enabled else 0}\n"
+        self.serial_port.send(cmd)
+        
+        return self._handle_final_response_frame()
+
+    @needs_open()
+    def wileye_set_zoom_level(self, zoom_level: int) -> Result[str, str]:
+        """Set the zoom level for the WilEye camera.
+
+        Arguments:
+        ----------
+            zoom_level: int
+                Zoom levels [1-4] (1 = no zoom, 4 = max zoom)
+
+        Returns:
+        -------
+            Result[str, str]:
+                Ok(str) if the command was sent successfully, Err(str) if not.
+        """
+        self._empty_all()
+        cmd = f"e\\c\\m {zoom_level}"
+        self.serial_port.send(cmd)
+        return self._handle_final_response_frame()
+
+    @needs_open()
+    def wileye_set_resolution(self, resolution_index: int) -> Result[str, str]:
+        """Set the resolution for the WilEye camera.
+
+        Arguments:
+        ----------
+            resolution_index: int
+                Resolution index:
+                    0 = 640x480
+                    1 = 1280x720
+                    2 = 1920x1080
+
+        Returns:
+        -------
+            Result[str, str]:
+                Ok(str) if the command was sent successfully, Err(str) if not.
+        """
+        self._empty_all()
+        cmd = f"e\\c\\y {resolution_index}\n"
+        self.serial_port.send(cmd)
+        
+        return self._handle_final_response_frame()

@@ -51,7 +51,7 @@ def get_file_from_device(fw: FreeWili, source_file: str, destination_path: str, 
         print(f"   File saved to: {dest_path.absolute()}")
         print(f"   File size: {dest_path.stat().st_size} bytes")
     else:
-        print(f"❌ Error: {result.unwrap_err()}")
+        print(f"Error: {result.unwrap_err()}")
 
 
 def list_available_files(fw: FreeWili, processor: FwProcessor, directory: str = "/") -> None:
@@ -71,13 +71,13 @@ def list_available_files(fw: FreeWili, processor: FwProcessor, directory: str = 
     # Change to the specified directory
     change_result = fw.change_directory(directory, processor)
     if change_result.is_err():
-        print(f"❌ Failed to change to directory {directory}: {change_result.unwrap_err()}")
+        print(f"Failed to change to directory {directory}: {change_result.unwrap_err()}")
         return
     
     # List current directory contents
     result = fw.list_current_directory(processor)
     if result.is_err():
-        print(f"❌ Failed to list directory contents: {result.unwrap_err()}")
+        print(f"Failed to list directory contents: {result.unwrap_err()}")
         return
     
     fs_contents = result.unwrap()
@@ -103,7 +103,7 @@ def main() -> None:
     # Find and connect to FreeWili device
     fw_result = FreeWili.find_first()
     if fw_result.is_err():
-        print(f"❌ Failed to find FreeWili device: {fw_result.unwrap_err()}")
+        print(f"Failed to find FreeWili device: {fw_result.unwrap_err()}")
         return
     
     try:
@@ -130,7 +130,7 @@ def main() -> None:
                 ("/settings.txt", "./upload/main_settings.txt", FwProcessor.Main, "Main processor configuration"),
                 ("/settings.txt", "./upload/display_settings.txt", FwProcessor.Display, "Display processor configuration"),
                 ("/testfw.bin", "./upload/testfw.bin", FwProcessor.Main, "Small test firmware binary"),
-                ("/wili.jpeg", "./upload/wili.jpeg", FwProcessor.Main, "Large JPEG image (now working with fix!)")
+                ("/wili.jpeg", "./upload/wili.jpeg", FwProcessor.Main, "JPEG image")
             ]
             
             for source_file, dest_path, processor, description in working_downloads:
@@ -143,53 +143,18 @@ def main() -> None:
                         processor=processor
                     )
                 except Exception as e:
-                    print(f"❌ Download failed: {e}")
+                    print(f" Download failed: {e}")
             
             print(f"\n{'='*50}")
             print("Additional Examples (modify with actual file names):")
             print(f"{'='*50}")
             
-            # Example 4: Download a sound file from Display processor (if any exist)
-            # Uncomment and modify this example with an actual file name
-            # get_file_from_device(
-            #     fw=fw,
-            #     source_file="/sounds/beep.wav",
-            #     destination_path="./upload/beep.wav",
-            #     processor=FwProcessor.Display
-            # )
-            
-            # Example 5: Download an image file from Display processor (if any exist)
-            # Uncomment and modify this example with an actual file name
-            # get_file_from_device(
-            #     fw=fw,
-            #     source_file="/images/logo.fwi",
-            #     destination_path="./upload/logo.fwi",
-            #     processor=FwProcessor.Display
-            # )
-            
-            # Example 6: Download a script file from Main processor (if any exist)
-            # Uncomment and modify this example with an actual file name
-            # get_file_from_device(
-            #     fw=fw,
-            #     source_file="/scripts/test.wasm",
-            #     destination_path="./upload/test.wasm",
-            #     processor=FwProcessor.Main
-            # )
-            
     except Exception as e:
-        print(f"❌ Failed to open FreeWili device: {e}")
-        print("� This could be due to:")
-        print("   - Another application using the device (close other FreeWili software)")
-        print("   - Insufficient permissions (try running as administrator)")  
-        print("   - Device connection issues (check USB cable)")
+        print(f"Failed to open FreeWili device: {e}")
         return
         
-    print(f"\n📋 Summary:")
-    print(f"✅ Small files (<1.3KB): Download reliably")
-    print(f"✅ Medium files (1.3KB-10KB): Work consistently") 
-    print(f"✅ Large files (10KB+): Now working with buffer parsing fix!")
-    print(f"💡 All downloaded files are saved in the ./upload/ directory")
-    print(f"� Check ./upload/ for your downloaded files")
+    print(f"\nSummary:")
+    print(f" All downloaded files are saved in the ./upload/ directory")
 
 
 if __name__ == "__main__":
