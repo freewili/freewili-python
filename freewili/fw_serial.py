@@ -985,7 +985,7 @@ class FreeWiliSerial:
         """
         self._empty_all()
         data_str = " ".join(f"{b:02x}" for b in data)
-        cmd = f"r\np\n{data_str}"
+        cmd = f"r\nw\n{data_str}"
         self.serial_port.send(cmd)
         return self._handle_final_response_frame()
 
@@ -1949,7 +1949,7 @@ class FreeWiliSerial:
                 Ok(str) if the command was sent successfully, Err(str) if not.
         """
         self._empty_all()
-        cmd = f"e\\c\\i {saturation}\n"
+        cmd = f"e\\c\\ {saturation}\n"
         self.serial_port.send(cmd)
         
         return self._handle_final_response_frame()
