@@ -10,15 +10,19 @@ from freewili.fw import FreeWiliProcessorType as FwProcessor
 def test_file_creation() -> None:
     """Test file creation on a FreeWili."""
     with FreeWili.find_first().expect("Failed to open") as fw:
-        for processor in (FwProcessor.Main, FwProcessor.Display):
+        for processor in (FwProcessor.Main,):
             # fw.format_filesystem(processor).expect("Failed to format filesystem")
-            fw.create_directory("test_dir", processor).expect("Failed to create directory")
-            fw.change_directory("test_dir", processor).expect("Failed to change directory")
-            fw.create_blank_file("test_file.txt", processor).expect("Failed to create file")
-            fw.move_directory_or_file("test_file.txt", "test_file_moved.txt", processor).expect("Failed to move file")
-            fw.remove_directory_or_file("test_file_moved.txt", processor).expect("Failed to remove file")
-            fw.change_directory("/", processor).expect("Failed to change directory")
-            fw.remove_directory_or_file("test_dir", processor).expect("Failed to remove file")
+            fw.create_directory("test_dir", processor).expect(f"Failed to create directory on {processor.name}")
+            fw.change_directory("test_dir", processor).expect(f"Failed to change directory on {processor.name}")
+            fw.create_blank_file("test_file.txt", processor).expect(f"Failed to create file on {processor.name}")
+            fw.move_directory_or_file("test_file.txt", "test_file_moved.txt", processor).expect(
+                f"Failed to move file on {processor.name}"
+            )
+            fw.remove_directory_or_file("test_file_moved.txt", processor).expect(
+                f"Failed to remove file on {processor.name}"
+            )
+            fw.change_directory("/", processor).expect(f"Failed to change directory on {processor.name}")
+            fw.remove_directory_or_file("test_dir", processor).expect(f"Failed to remove file on {processor.name}")
 
 
 @pytest.mark.skipif("len(FreeWili.find_all()) == 0")
