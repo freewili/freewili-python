@@ -19,7 +19,8 @@ def event_handler(event_type: EventType, frame: ResponseFrame, data: AudioData) 
     audio_data.append(data.data)
 
 
-with FreeWili.find_first().expect("Failed to find FreeWili") as fw, wave.open("test.wav", "wb") as wav_file:
+fw = FreeWili.find_first().expect("Failed to find FreeWili")
+with fw, wave.open("test.wav", "wb") as wav_file:
     print(f"Connected to {fw}")
     wav_file.setnchannels(1)  # Mono
     wav_file.setsampwidth(2)  # 2 bytes per sample (16-bit)

@@ -16,7 +16,8 @@ def event_callback(event_type: EventType, response_frame: ResponseFrame, event_d
         print(f"UART1 RX {len(event_data.data)}: {event_data.data!r}")
 
 
-with FreeWili.find_first().expect("Failed to find FreeWili") as fw:
+fw = FreeWili.find_first().expect("Failed to find FreeWili")
+with fw:
     fw.set_event_callback(event_callback)
     fw.enable_uart_events(True).expect("Failed to enable UART events")
     data = b"Hello Free-WiLi from UART1!"

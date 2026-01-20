@@ -85,7 +85,8 @@ def explore_directory(
             fw.change_directory(return_path, processor)
 
 
-with FreeWili.find_first().expect("Failed to find FreeWili") as fw:
+fw = FreeWili.find_first().expect("Failed to find FreeWili")
+with fw:
     print(f"Connected to {fw}")
     print("\n=== Exploring Display Processor Filesystem ===")
     fw.change_directory("/", FwProcessor.Display).expect("Failed to change to root directory on Display processor")

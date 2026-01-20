@@ -26,7 +26,7 @@ def test_hw_i2c_nothing_attached() -> None:
     """Test i2c on a FreeWili with nothing attached."""
     device = FreeWili.find_first().expect("Failed to find a FreeWili")
     device.open().expect("Failed to open FreeWili")
-    try:
+    with device:
         # Test Polling
         addresses = device.poll_i2c().expect("Failed to poll i2c")
         if len(addresses) != 0:
@@ -40,8 +40,6 @@ def test_hw_i2c_nothing_attached() -> None:
 
         with pytest.raises(Exception):  # noqa: B017
             _ = device.read_i2c(0x0, 0x0, 8).expect("Failed to read i2c")
-    finally:
-        device.close()
 
 
 @pytest.mark.skipif("len(FreeWili.find_all()) == 0")
@@ -55,8 +53,7 @@ def test_hw_i2c_sparkfun_9dof_imu_breakout() -> None:
     """
     device = FreeWili.find_first().expect("Failed to find a FreeWili")
     device.open().expect("Failed to open FreeWili")
-
-    try:
+    with device:
         # Test Polling
         addresses = device.poll_i2c().expect("Failed to poll I2C")
         if len(addresses) == 0:
@@ -88,8 +85,6 @@ def test_hw_i2c_sparkfun_9dof_imu_breakout() -> None:
         # Product ID1 0x2F
         response = device.read_i2c(0x30, 0x2F, 1).expect("Failed to read register 0x6B on ISM330DHCX")
         assert response[0] == 0x30, f"Expected 0x30, got {response[0]:02X}"
-    finally:
-        device.close()
 
 
 if __name__ == "__main__":

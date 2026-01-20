@@ -2,7 +2,8 @@
 
 from freewili import FreeWili
 
-with FreeWili.find_first().expect("Failed to find FreeWili") as fw:
+fw = FreeWili.find_first().expect("Failed to find FreeWili")
+with fw:
     print(f"Connected to {fw}")
     while True:
         try:

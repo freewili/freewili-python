@@ -5,7 +5,8 @@ from freewili.types import IOMenuCommand
 
 if __name__ == "__main__":
     try:
-        with FreeWili.find_first().expect("Failed to find FreeWili") as fw:
+        fw = FreeWili.find_first().expect("Failed to find FreeWili")
+        with fw:
             print(f"Connected to {fw}")
             # Set IO 25 high
             fw.set_io(25, IOMenuCommand.High).expect("Failed to set IO high")

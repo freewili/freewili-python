@@ -5,7 +5,8 @@ from datetime import datetime
 from freewili import FreeWili
 from freewili.types import FreeWiliProcessorType
 
-with FreeWili.find_first().expect("Failed to find FreeWili") as fw:
+fw = FreeWili.find_first().expect("Failed to find FreeWili")
+with fw:
     print(f"Connected to {fw}")
     # Set default settings for both processors
     for processor in (FreeWiliProcessorType.Main, FreeWiliProcessorType.Display):

@@ -11,7 +11,8 @@ def event_callback(event_type: EventType, response_frame: ResponseFrame, event_d
         print(f"IR RX {len(event_data.value)}: {event_data.value!r}")
 
 
-with FreeWili.find_first().expect("Failed to find FreeWili") as fw:
+fw = FreeWili.find_first().expect("Failed to find FreeWili")
+with fw:
     fw.set_event_callback(event_callback)
     print("Enabling IR events")
     fw.enable_ir_events(True).expect("Failed to enable IR events")

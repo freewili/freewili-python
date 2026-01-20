@@ -22,7 +22,8 @@ def event_handler(event_type: EventType, frame: ResponseFrame, data: EventDataTy
                 print(f"No data for this {event_type}.")
 
 
-with FreeWili.find_first().expect("Failed to find FreeWili") as fw:
+fw = FreeWili.find_first().expect("Failed to find FreeWili")
+with fw:
     print(f"Connected to FreeWili {fw}")
     fw.set_event_callback(event_handler)
 
