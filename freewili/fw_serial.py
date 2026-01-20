@@ -223,7 +223,7 @@ class FreeWiliSerial:
             self._wait_for_data(2.0, "Enter Letter:").expect("Failed to enable menu!")
             time.sleep(0.01)  # Give some time for the menu to be enabled
 
-    def _wait_for_response_frame(self, timeout_sec: float = 6.0) -> Result[ResponseFrame, str]:
+    def _wait_for_response_frame(self, timeout_sec: float = 6.0, what_msg: str = "") -> Result[ResponseFrame, str]:
         """Wait for a response frame after sending a command.
 
         Parameters:
@@ -246,7 +246,7 @@ class FreeWiliSerial:
                 pass
             if timeout_sec == 0:
                 break
-        return Err(f"Failed to read response frame in {timeout_sec} seconds")
+        return Err(f"Failed to read response frame in {timeout_sec} seconds: {what_msg}")
 
     def _wait_for_event_response_frame(self, timeout_sec: float = 6.0) -> Result[ResponseFrame, str]:
         """Wait for a response frame after sending a command.
@@ -1240,7 +1240,7 @@ class FreeWiliSerial:
         _user_cb_func(f"Requesting file transfer of {source_file} ({fsize} bytes) to {target_name}...")
         cmd = f"x\nf\n{target_name} {fsize} {checksum}"
         self.serial_port.send(cmd, delay_sec=0.0)
-        match self._wait_for_response_frame():
+        match self._wait_for_response_frame(what_msg=f"starting file transfer of {source_file}"):
             case Ok(rf):
                 _user_cb_func(f"Firmware response: {rf.response}")
             case Err(msg):
@@ -1263,7 +1263,7 @@ class FreeWiliSerial:
             msg = f"Sent {total_sent} bytes but expected {fsize} bytes."
             _user_cb_func(msg)
             return Err(msg)
-        match self._wait_for_response_frame():
+        match self._wait_for_response_frame(what_msg=f"finalizing file {source_file}"):
             case Ok(rf):
                 msg = f"Sent {target_name} in {time.time() - start:.2f} seconds: {rf.response}"
                 _user_cb_func(msg)
@@ -1304,7 +1304,7 @@ class FreeWiliSerial:
         _user_cb_func("Sending command...")
         self.serial_port.send(f"x\nu\n{source_file} \n", False, delay_sec=0.1)
         _user_cb_func("Waiting for response frame...")
-        rf = self._wait_for_response_frame()
+        rf = self._wait_for_response_frame(what_msg=f"getting file {source_file}")
         if rf.is_err():
             return Err(f"Failed to get file {source_file}: {rf.err_value}")
         rf = rf.ok_value
@@ -1347,7 +1347,7 @@ class FreeWiliSerial:
                     _user_cb_func(f"Firmware response: {rf_event.ok_value.response}")
             _user_cb_func(f"Saved {source_file} {count} bytes to {destination_path}. {count / fsize * 100:.2f}%")
         # b'[u 0DF8213FA48CA2A3 295 success 153624 bytes 1743045997 crc 1]\r\n'
-        rf = self._wait_for_response_frame()
+        rf = self._wait_for_response_frame(2.0, what_msg=f"finalizing file {source_file}")
         if rf.is_ok():
             _user_cb_func(rf.ok_value.response)
             # success 153624 bytes 1743045997 crc
@@ -1862,7 +1862,8 @@ class FreeWiliSerial:
         Arguments:
         ----------
             destination: int
-                Destination processor (0 = WILEye's SDCard, 1 = FREE-WILi's Main Filesystem, 2 = FREE-WILi's Display Filesystem)
+                Destination processor (0 = WILEye's SDCard, 1 = FREE-WILi's Main Filesystem,
+                2 = FREE-WILi's Display Filesystem)
             filename: str
                 Name of the file to save the picture as
 
@@ -1883,7 +1884,8 @@ class FreeWiliSerial:
         Arguments:
         ----------
             destination: int
-                Destination processor (0 = WILEye's SDCard, 1 = FREE-WILi's Main Filesystem, 2 = FREE-WILi's Display Filesystem)
+                Destination processor (0 = WILEye's SDCard, 1 = FREE-WILi's Main Filesystem,
+                2 = FREE-WILi's Display Filesystem)
             filename: str
                 Name of the file to save the video as
 
@@ -1951,7 +1953,7 @@ class FreeWiliSerial:
         self._empty_all()
         cmd = f"e\\c\\i {saturation}\n"
         self.serial_port.send(cmd)
-        
+
         return self._handle_final_response_frame()
 
     @needs_open()
@@ -1971,7 +1973,7 @@ class FreeWiliSerial:
         self._empty_all()
         cmd = f"e\\c\\b {brightness}\n"
         self.serial_port.send(cmd)
-        
+
         return self._handle_final_response_frame()
 
     @needs_open()
@@ -1991,7 +1993,7 @@ class FreeWiliSerial:
         self._empty_all()
         cmd = f"e\\c\\u {hue}\n"
         self.serial_port.send(cmd)
-        
+
         return self._handle_final_response_frame()
 
     @needs_open()
@@ -2011,7 +2013,7 @@ class FreeWiliSerial:
         self._empty_all()
         cmd = f"e\\c\\l {1 if enabled else 0}\n"
         self.serial_port.send(cmd)
-        
+
         return self._handle_final_response_frame()
 
     @needs_open()
@@ -2053,5 +2055,5 @@ class FreeWiliSerial:
         self._empty_all()
         cmd = f"e\\c\\y {resolution_index}\n"
         self.serial_port.send(cmd)
-        
+
         return self._handle_final_response_frame()
