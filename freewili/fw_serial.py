@@ -1263,7 +1263,7 @@ class FreeWiliSerial:
             msg = f"Sent {total_sent} bytes but expected {fsize} bytes."
             _user_cb_func(msg)
             return Err(msg)
-        match self._wait_for_response_frame(what_msg=f"finalizing file {source_file}"):
+        match self._wait_for_response_frame(what_msg=f"finalizing sent file {source_file}"):
             case Ok(rf):
                 msg = f"Sent {target_name} in {time.time() - start:.2f} seconds: {rf.response}"
                 _user_cb_func(msg)
@@ -1347,7 +1347,7 @@ class FreeWiliSerial:
                     _user_cb_func(f"Firmware response: {rf_event.ok_value.response}")
             _user_cb_func(f"Saved {source_file} {count} bytes to {destination_path}. {count / fsize * 100:.2f}%")
         # b'[u 0DF8213FA48CA2A3 295 success 153624 bytes 1743045997 crc 1]\r\n'
-        rf = self._wait_for_response_frame(2.0, what_msg=f"finalizing file {source_file}")
+        rf = self._wait_for_response_frame(6.0, what_msg=f"CRC response {source_file}")
         if rf.is_ok():
             _user_cb_func(rf.ok_value.response)
             # success 153624 bytes 1743045997 crc
