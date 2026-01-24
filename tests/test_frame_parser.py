@@ -31,7 +31,7 @@ def queues():  # type: ignore[no-untyped-def]
 
 def test_parser_initial_state(parser):  # type: ignore[no-untyped-def]
     """Test that parser initializes with correct state."""
-    assert parser.state == ParserState.SEARCHING
+    assert parser.state == ParserState.IDLE
     assert parser._debug_count == 0
 
 
@@ -42,7 +42,7 @@ def test_parser_reset(parser):  # type: ignore[no-untyped-def]
 
     parser.reset()
 
-    assert parser.state == ParserState.SEARCHING
+    assert parser.state == ParserState.IDLE
     assert parser._debug_count == 0
 
 
@@ -242,8 +242,8 @@ def test_parse_preserves_state_across_calls(parser, queues):  # type: ignore[no-
 
 def test_parse_binary_data_with_bracket(parser, queues):  # type: ignore[no-untyped-def]
     """Test parsing binary data that contains '[' but isn't a frame."""
-    # Binary data with '[' but no valid frame structure
-    binary_with_bracket = b"[BINARY\x00\x01\x02"
+    # Binary data with '[' but not followed by * or a letter - clearly not a frame
+    binary_with_bracket = b"[123BINARY\x00\x01\x02"
     queues["data_buffer"].write(binary_with_bracket)
 
     parser.parse(

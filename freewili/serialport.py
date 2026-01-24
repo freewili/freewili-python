@@ -342,7 +342,7 @@ class SerialPort(threading.Thread):
                                 self._port,
                                 baudrate=self._baudrate,
                                 timeout=0.001,
-                                exclusive=True,
+                                exclusive=False,
                                 rtscts=False,
                                 xonxoff=False,
                                 dsrdtr=False,
@@ -432,7 +432,7 @@ class SerialPort(threading.Thread):
         data: bytes | str,
         append_newline: bool = True,
         newline_chars: str = "\n",
-        delay_sec: float = 0.000,
+        delay_sec: float = 0.005,
         wait: bool = True,
     ) -> None:
         r"""Send data to the serial port.

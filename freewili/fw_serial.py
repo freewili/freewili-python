@@ -1252,7 +1252,7 @@ class FreeWiliSerial:
             total_sent = 0
             while chunk := f.read(chunk_size):
                 total_sent += len(chunk)
-                self.serial_port.send(chunk, False, delay_sec=0)
+                self.serial_port.send(chunk, False, delay_sec=0.0)
                 _user_cb_func(f"Sent {total_sent}/{fsize} bytes of {source_file}. {total_sent / fsize * 100:.2f}%")
                 rf_event = self._wait_for_event_response_frame(0)
                 if rf_event.is_ok():
@@ -1316,6 +1316,7 @@ class FreeWiliSerial:
         else:
             fsize = int(rf.response.split(" ")[-1])
             _user_cb_func(f"Requested file {source_file} successfully with {fsize} bytes.")
+
         _user_cb_func(f"Opening/Creating file {destination_path}")
         checksum = 0
         with open(destination_path, "wb") as f:
@@ -1334,18 +1335,27 @@ class FreeWiliSerial:
                     time.sleep(0.001)
                     continue
                 last_bytes_received = time.time()
-                count += len(data)
-                cb_timeout_byte_count += len(data)
-                if cb_timeout_byte_count >= 4096:
-                    _user_cb_func(f"Saving {source_file} {count} of {fsize} bytes. {count / fsize * 100:.2f}%")
-                    cb_timeout_byte_count = 0
-                f.write(data)
-                checksum = zlib.crc32(data, checksum)
+
+                # Only write up to fsize bytes to prevent frame data from being included
+                # When the last chunk arrives, it might contain the final CRC response frame
+                bytes_to_write = min(len(data), fsize - count)
+                if bytes_to_write > 0:
+                    chunk_to_write = data[:bytes_to_write]
+                    f.write(chunk_to_write)
+                    checksum = zlib.crc32(chunk_to_write, checksum)
+                    count += bytes_to_write
+                    cb_timeout_byte_count += bytes_to_write
+
+                    if cb_timeout_byte_count >= 4096:
+                        _user_cb_func(f"Saving {source_file} {count} of {fsize} bytes. {count / fsize * 100:.2f}%")
+                        cb_timeout_byte_count = 0
+
                 self.serial_port.data_queue.task_done()
                 rf_event = self._wait_for_event_response_frame(0)
                 if rf_event.is_ok():
                     _user_cb_func(f"Firmware response: {rf_event.ok_value.response}")
             _user_cb_func(f"Saved {source_file} {count} bytes to {destination_path}. {count / fsize * 100:.2f}%")
+
         # b'[u 0DF8213FA48CA2A3 295 success 153624 bytes 1743045997 crc 1]\r\n'
         rf = self._wait_for_response_frame(6.0, what_msg=f"CRC response {source_file}")
         if rf.is_ok():

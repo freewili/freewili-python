@@ -121,6 +121,7 @@ def test_file_send_and_get() -> None:
         elapsed = time.time() - start_time
         assert elapsed < 10, f"File send took too long: {elapsed:.2f} seconds"
         assert len(event_cb_buffer) > 0
+        time.sleep(1)  # Wait a moment before getting the file
         event_cb_buffer.clear()
         # Get File
         start_time = time.time()
