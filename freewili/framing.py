@@ -1,6 +1,7 @@
 """Support for FreeWili serial framing."""
 
 import enum
+import re
 import sys
 from dataclasses import dataclass
 
@@ -20,6 +21,8 @@ class ResponseFrameType(enum.Enum):
     Standard = enum.auto()
     # response frames that start with an *[EVENT_NAME]
     Event = enum.auto()
+    # Not a frame
+    Invalid = enum.auto()
 
 
 @dataclass(frozen=True)
@@ -55,7 +58,7 @@ class ResponseFrame:
         return frame.startswith("[") and frame.endswith("]")
 
     @staticmethod
-    def is_start_of_frame(frame: bytes | str) -> bool:
+    def is_start_of_frame(data: bytes | str) -> bool:
         """Identify if the frame value is something we might be able to parse when complete.
 
         Parameters:
@@ -68,10 +71,58 @@ class ResponseFrame:
             bool:
                 True if is a frame, False otherwise.
         """
-        if isinstance(frame, bytes):
-            frame = frame.decode("ascii")
-        assert isinstance(frame, str)
-        return frame.startswith("[")
+        contains, index = ResponseFrame.contains_start_of_frame(data)
+        return contains and index == 0
+
+    @staticmethod
+    def contains_start_of_frame(data: bytes | str) -> tuple[bool, int]:
+        """Identify if the data contains the start of a frame.
+
+        Parameters:
+        -----------
+            data : bytes:
+                data buffer to check.
+
+        Returns:
+        --------
+            tuple[bool, int]:
+                True if contains start of frame, False otherwise. Also returns the index of the start of frame.
+        """
+        if isinstance(data, bytes):
+            data = data.decode("ascii")
+        assert isinstance(data, str)
+        index = data.find("[")
+        return (index != -1, index)
+
+    @staticmethod
+    def validate_start_of_frame(data: bytes | str) -> tuple[ResponseFrameType, int]:
+        """Validate that the data starts with a frame.
+
+        Parameters:
+        -----------
+            data : bytes | str:
+                data buffer to check.
+
+        Returns:
+        --------
+            tuple[ResponseFrameType, int]:
+                Standard/Event if data has a start of frame, Invalid otherwise.
+                Also returns the index of the start of frame. -1 if invalid.
+        """
+        contains, index = ResponseFrame.contains_start_of_frame(data)
+        if not contains:
+            return (ResponseFrameType.Invalid, -1)
+        if isinstance(data, bytes):
+            data = data.decode("ascii")
+        assert isinstance(data, str)
+        # Trim data to start of frame
+        sof_data = data[index:]
+        # Parse an event frame first [*event_name ...]
+        if re.match(r"^\[\*\w+ ", sof_data):
+            return (ResponseFrameType.Event, index)
+        elif re.match(r"^\[[a-zA-Z](\\[a-zA-Z])* ", sof_data):
+            return (ResponseFrameType.Standard, index)
+        return (ResponseFrameType.Invalid, -1)
 
     @classmethod
     def from_raw(cls, frame: str | bytes, strict: bool = True) -> Result[Self, str]:
