@@ -124,6 +124,26 @@ class ResponseFrame:
             return (ResponseFrameType.Standard, index)
         return (ResponseFrameType.Invalid, -1)
 
+    @staticmethod
+    def contains_end_of_frame(data: bytes | str) -> tuple[bool, int]:
+        """Identify if the data contains the end of a frame.
+
+        Parameters:
+        -----------
+            data : bytes:
+                data buffer to check.
+
+        Returns:
+        --------
+            tuple[bool, int]:
+                True if contains end of frame, False otherwise. Also returns the index of the end of frame.
+        """
+        if isinstance(data, bytes):
+            data = data.decode("ascii")
+        assert isinstance(data, str)
+        index = data.find("]")
+        return (index != -1, index)
+
     @classmethod
     def from_raw(cls, frame: str | bytes, strict: bool = True) -> Result[Self, str]:
         """Take a response frame string and create a ResponseFrame.
