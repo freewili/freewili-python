@@ -52,10 +52,10 @@ class ResponseFrame:
             bool:
                 True if is a frame, False otherwise.
         """
-        if isinstance(frame, bytes):
-            frame = frame.decode("ascii")
-        assert isinstance(frame, str)
-        return frame.startswith("[") and frame.endswith("]")
+        if isinstance(frame, str):
+            frame = frame.encode("ascii")
+        assert isinstance(frame, bytes)
+        return frame.startswith(b"[") and frame.endswith(b"]")
 
     @staticmethod
     def is_start_of_frame(data: bytes | str) -> bool:
@@ -88,10 +88,10 @@ class ResponseFrame:
             tuple[bool, int]:
                 True if contains start of frame, False otherwise. Also returns the index of the start of frame.
         """
-        if isinstance(data, bytes):
-            data = data.decode("ascii")
-        assert isinstance(data, str)
-        index = data.find("[")
+        if isinstance(data, str):
+            data = data.encode("ascii")
+        assert isinstance(data, bytes)
+        index = data.find(b"[")
         return (index != -1, index)
 
     @staticmethod
@@ -112,15 +112,15 @@ class ResponseFrame:
         contains, index = ResponseFrame.contains_start_of_frame(data)
         if not contains:
             return (ResponseFrameType.Invalid, -1)
-        if isinstance(data, bytes):
-            data = data.decode("ascii")
-        assert isinstance(data, str)
+        if isinstance(data, str):
+            data = data.encode("ascii")
+        assert isinstance(data, bytes)
         # Trim data to start of frame
         sof_data = data[index:]
         # Parse an event frame first [*event_name ...]
-        if re.match(r"^\[\*\w+ ", sof_data):
+        if re.match(rb"^\[\*\w+ ", sof_data):
             return (ResponseFrameType.Event, index)
-        elif re.match(r"^\[[a-zA-Z](\\[a-zA-Z])* ", sof_data):
+        elif re.match(rb"^\[[a-zA-Z](\\[a-zA-Z])* ", sof_data):
             return (ResponseFrameType.Standard, index)
         return (ResponseFrameType.Invalid, -1)
 
@@ -138,10 +138,10 @@ class ResponseFrame:
             tuple[bool, int]:
                 True if contains end of frame, False otherwise. Also returns the index of the end of frame.
         """
-        if isinstance(data, bytes):
-            data = data.decode("ascii")
-        assert isinstance(data, str)
-        index = data.find("]")
+        if isinstance(data, str):
+            data = data.encode("ascii")
+        assert isinstance(data, bytes)
+        index = data.find(b"]")
         return (index != -1, index)
 
     @classmethod
