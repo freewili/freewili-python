@@ -6,7 +6,7 @@ import queue
 import time
 from dataclasses import dataclass
 
-from freewili.framing import ResponseFrame
+from freewili.framing import ResponseFrame, ResponseFrameType
 from freewili.safe_reponse_frame_dict import SafeResponseFrameDict
 from freewili.util.fifo import SafeIOFIFOBuffer
 
@@ -111,14 +111,10 @@ class FrameParser:
             match self.state:
                 case ParserState.IDLE:
                     self._parse_idle()
-                case ParserState.IN_POSSIBLE_FRAME:
-                    self._parse_possible_frame()
                 case ParserState.IN_EVENT_FRAME:
-                    self._parse_event_frame()
+                    self._parse_frame()
                 case ParserState.IN_COMMAND_FRAME:
-                    self._parse_command_frame()
-                case ParserState.IN_BINARY_DATA:
-                    self._parse_binary_data()
+                    self._parse_frame()
                 case _:
                     self.logger.error(f"Unknown parser state: {self.state}")
                     raise RuntimeError(f"Unknown parser state: {self.state}")
@@ -138,355 +134,58 @@ class FrameParser:
         if self.args.data_buffer.available() == 0:
             return
 
-        first_byte = self.args.data_buffer.peek(1)
-
-        if first_byte == b"[":
-            # Possible frame start, transition to IN_POSSIBLE_FRAME
-            self.logger.debug("Transitioning to IN_POSSIBLE_FRAME")
-            self.state = ParserState.IN_POSSIBLE_FRAME
-            self._frame_buffer.clear()
-            self._frame_start_time = time.time()
-        else:
-            # Not a frame start - binary data
-            self.logger.debug("Transitioning to IN_BINARY_DATA")
-            self.state = ParserState.IN_BINARY_DATA
-            self._binary_buffer.clear()
-
-    def _parse_possible_frame(self) -> None:
-        """Parse data in IN_POSSIBLE_FRAME state - determine if event or command frame.
-
-        Event frames: [*word ...]
-        Command frames: [x ...] where x is a letter followed by space or backslash
-        """
-        # Need at least 3 bytes to check: [* or [x followed by space/backslash
-        if self.args.data_buffer.available() < 3:
-            # Check timeout while waiting
-            if time.time() - self._frame_start_time > 1.0:
-                # Waited too long, probably binary
-                self.logger.debug("Possible frame timeout, treating as binary")
-                self.state = ParserState.IN_BINARY_DATA
-                self._binary_buffer.clear()
+        data: bytes = self.args.data_buffer.peek(-1)
+        is_start, index = ResponseFrame.contains_start_of_frame(data)
+        if not is_start:
+            self.args.data_queue.put(self.args.data_buffer.read(len(data)))
             return
-
-        first_three = self.args.data_buffer.peek(3)
-
-        if first_three[:2] == b"[*":
-            # Event frame starts with [*
-            self.logger.debug("Detected event frame ([*)")
-            self.state = ParserState.IN_EVENT_FRAME
-            # Consume the [* prefix
-            self._frame_buffer.extend(self.args.data_buffer.read(2))
-        elif first_three[0:1] == b"[" and first_three[1:2].isalpha():
-            # Might be a command frame - check if followed by space or backslash
-            second_char = first_three[1:2]
-            third_char = first_three[2:3]
-
-            if third_char in (b" ", b"\\"):
-                # Looks like a command frame: [letter followed by space or backslash
-                self.logger.debug(
-                    f"Detected command frame ([{second_char.decode('ascii', errors='ignore')} "
-                    f"{third_char.decode('ascii', errors='ignore')})"
-                )
+        # we need to dump any data before the frame start as binary (ie. 'asdf[' )
+        if index - 1 > 0:
+            self.args.data_queue.put(self.args.data_buffer.read(index - 1))
+        # Found a frame start at index
+        match ResponseFrame.validate_start_of_frame(data[index:]):
+            case (ResponseFrameType.Event, _):
+                self.logger.debug("Detected event frame start in IDLE")
+                self.state = ParserState.IN_EVENT_FRAME
+            case (ResponseFrameType.Standard, _):
+                self.logger.debug("Detected command frame start in IDLE")
                 self.state = ParserState.IN_COMMAND_FRAME
-                # Consume the [letter prefix
-                self._frame_buffer.extend(self.args.data_buffer.read(2))
-            else:
-                # [letter but not followed by space/backslash - probably binary
-                self.logger.debug(
-                    f"Not a valid frame ([{second_char.decode('ascii', errors='ignore')}"
-                    f"{third_char.decode('ascii', errors='ignore')}), transitioning to IN_BINARY_DATA"
-                )
-                self.state = ParserState.IN_BINARY_DATA
-                self._binary_buffer.clear()
-        else:
-            # Not a valid frame start, treat as binary
-            self.logger.debug("Not a valid frame, transitioning to IN_BINARY_DATA")
-            self.state = ParserState.IN_BINARY_DATA
-            self._binary_buffer.clear()
+            case (ResponseFrameType.Invalid, _):
+                self.logger.debug("Not a valid frame start in IDLE")
+                # recursively call to handle remaining data incase we have another frame start
+                # eat the first byte which should be a '['
+                self.args.data_queue.put(self.args.data_buffer.read(1))
+                self._parse_idle()
+            case _:
+                raise RuntimeError("Unexpected result from validate_start_of_frame")
 
-    def _parse_event_frame(self) -> None:
+    def _parse_frame(self) -> None:
         """Parse data in IN_EVENT_FRAME state - wait for closing bracket ]."""
-        # Check timeout
-        elapsed = time.time() - self._frame_start_time
-        if elapsed > 6.0:
-            self.logger.error(f"Event frame timeout after {elapsed:.1f}s: {bytes(self._frame_buffer)!r}")
-            # Output as binary data since it's not a valid frame
-            if len(self._frame_buffer) > 0:
-                self.args.data_queue.put(bytes(self._frame_buffer))
-            self._frame_buffer.clear()
+        data: bytes = self.args.data_buffer.peek(-1)
+        is_end, index = ResponseFrame.contains_end_of_frame(data)
+        if not is_end and len(data) >= 100:
+            # No end found and buffer is large - treat as binary data
+            self.logger.error(f"Event frame exceeded 100 bytes: {data[:100]!r}")
+            self.args.data_queue.put(self.args.data_buffer.read(len(data)))
             self.state = ParserState.IDLE
             return
-
-        # Check size limit
-        if len(self._frame_buffer) > 200:
-            self.logger.error(f"Event frame exceeded 200 bytes: {bytes(self._frame_buffer)!r}")
-            # Output as binary data since it's not a valid frame
-            if len(self._frame_buffer) > 0:
-                self.args.data_queue.put(bytes(self._frame_buffer))
-            self._frame_buffer.clear()
+        frame_data = data[: index + 1]
+        # Consume frame data from buffer
+        self.args.data_queue.put(self.args.data_buffer.read(len(frame_data)))
+        rf = ResponseFrame.from_raw(frame_data)
+        if not rf.is_ok():
+            # Invalid frame - treat as binary data
+            self.logger.error(f"Invalid event frame: {frame_data!r}")
             self.state = ParserState.IDLE
             return
-
-        # Read byte by byte looking for closing bracket ]
-        while self.args.data_buffer.available() > 0:
-            byte = self.args.data_buffer.read(1)
-            self._frame_buffer.extend(byte)
-
-            # Check for closing bracket
-            if byte == b"]":
-                # Found closing bracket, now consume the newline
-                if self.args.data_buffer.available() == 0:
-                    # Wait for more data (the newline)
-                    return
-
-                next_byte = self.args.data_buffer.peek(1)
-                if next_byte == b"\n":
-                    # Frame ends with ]\n
-                    self._frame_buffer.extend(self.args.data_buffer.read(1))
-                    frame = bytes(self._frame_buffer)
-                    self.logger.debug(f"RX Event Frame: {frame!r}")
-                    rf_result = ResponseFrame.from_raw(frame)
-                    if rf_result.is_ok():
-                        self.args.rf_events.add(rf_result.unwrap())
-                    self.args.rf_event_queue.put(rf_result)
-                    self._frame_buffer.clear()
-                    self.state = ParserState.IDLE
-                    return
-                elif next_byte == b"\r":
-                    # Might be ]\r\n
-                    if self.args.data_buffer.available() < 2:
-                        # Wait for more data
-                        return
-                    next_two = self.args.data_buffer.peek(2)
-                    if next_two == b"\r\n":
-                        # Frame ends with ]\r\n
-                        self._frame_buffer.extend(self.args.data_buffer.read(2))
-                        frame = bytes(self._frame_buffer)
-                        self.logger.debug(f"RX Event Frame: {frame!r}")
-                        rf_result = ResponseFrame.from_raw(frame)
-                        if rf_result.is_ok():
-                            self.args.rf_events.add(rf_result.unwrap())
-                        self.args.rf_event_queue.put(rf_result)
-                        self._frame_buffer.clear()
-                        self.state = ParserState.IDLE
-                        return
-
-            # Check size limit after each byte
-            if len(self._frame_buffer) > 200:
-                self.logger.error(f"Event frame exceeded 200 bytes: {bytes(self._frame_buffer)!r}")
-                # Output accumulated data as binary instead of discarding it
-                self.args.data_queue.put(bytes(self._frame_buffer))
-                self._frame_buffer.clear()
-                self.state = ParserState.IDLE
-                return
-
-    def _parse_command_frame(self) -> None:
-        """Parse data in IN_COMMAND_FRAME state - wait for closing bracket ]."""
-        # Check timeout
-        elapsed = time.time() - self._frame_start_time
-        if elapsed > 6.0:
-            self.logger.error(f"Command frame timeout after {elapsed:.1f}s: {bytes(self._frame_buffer)!r}")
-            # Output as binary data since it's not a valid frame
-            if len(self._frame_buffer) > 0:
-                self.args.data_queue.put(bytes(self._frame_buffer))
-            self._frame_buffer.clear()
-            self.state = ParserState.IDLE
-            return
-
-        # Check size limit
-        if len(self._frame_buffer) > 200:
-            buffer_bytes = bytes(self._frame_buffer)
-            self.logger.error(f"Command frame exceeded 200 bytes: {buffer_bytes[:100]!r}...")
-            # Check if there's a valid frame ending somewhere in the buffer
-            # This handles the case where binary data starting with [letter is followed by a real frame
-
-            # Look for ]\r\n or ]\n patterns
-            frame_end_rn = buffer_bytes.find(b"]\r\n")
-            frame_end_n = buffer_bytes.find(b"]\n")
-
-            # Use whichever comes first (if any)
-            frame_end = -1
-            end_length = 0
-            if frame_end_rn != -1 and (frame_end_n == -1 or frame_end_rn < frame_end_n):
-                frame_end = frame_end_rn
-                end_length = 3
-            elif frame_end_n != -1:
-                frame_end = frame_end_n
-                end_length = 2
-
-            if frame_end != -1:
-                # Found a frame ending! Split the buffer
-                # Everything before frame_end is binary, frame_end to frame_end+end_length is the frame
-                if frame_end > 0:
-                    self.args.data_queue.put(buffer_bytes[:frame_end])
-
-                # Search backwards from the frame end to find [letter pattern
-                frame_start = -1
-                for i in range(frame_end - 1, -1, -1):
-                    if buffer_bytes[i : i + 1] == b"[" and i + 1 < frame_end:
-                        next_char = buffer_bytes[i + 1 : i + 2]
-                        if next_char and next_char.isalpha():
-                            frame_start = i
-                            break
-
-                if frame_start != -1:
-                    # Found the frame start
-                    frame_data = buffer_bytes[frame_start : frame_end + end_length]
-                    self.logger.debug(f"RX Command Frame (extracted): {frame_data!r}")
-                    self.args.rf_queue.put(ResponseFrame.from_raw(frame_data))
-                    # Put any remaining data after the frame back for reprocessing
-                    if frame_end + end_length < len(buffer_bytes):
-                        # Put remaining bytes back into the buffer
-                        remainder = buffer_bytes[frame_end + end_length :]
-                        for _ in remainder:
-                            pass  # self.args.data_buffer.putback(bytes([byte]))
-                else:
-                    # No valid frame start found, output everything as binary
-                    self.args.data_queue.put(buffer_bytes)
-            else:
-                # No frame ending found, output all as binary
-                self.args.data_queue.put(buffer_bytes)
-
-            self._frame_buffer.clear()
-            self.state = ParserState.IDLE
-            return
-
-        # Read byte by byte looking for closing bracket ]
-        while self.args.data_buffer.available() > 0:
-            byte = self.args.data_buffer.read(1)
-            self._frame_buffer.extend(byte)
-
-            # Check for closing bracket
-            if byte == b"]":
-                # Found closing bracket, now consume the newline
-                if self.args.data_buffer.available() == 0:
-                    # Wait for more data (the newline)
-                    return
-
-                next_byte = self.args.data_buffer.peek(1)
-                if next_byte == b"\n":
-                    # Frame ends with ]\n
-                    self._frame_buffer.extend(self.args.data_buffer.read(1))
-                    frame = bytes(self._frame_buffer)
-                    self.logger.debug(f"RX Command Frame: {frame!r}")
-                    self.args.rf_queue.put(ResponseFrame.from_raw(frame))
-                    self._frame_buffer.clear()
-                    self.state = ParserState.IDLE
-                    return
-                elif next_byte == b"\r":
-                    # Might be ]\r\n
-                    if self.args.data_buffer.available() < 2:
-                        # Wait for more data
-                        return
-                    next_two = self.args.data_buffer.peek(2)
-                    if next_two == b"\r\n":
-                        # Frame ends with ]\r\n
-                        self._frame_buffer.extend(self.args.data_buffer.read(2))
-                        frame = bytes(self._frame_buffer)
-                        self.logger.debug(f"RX Command Frame: {frame!r}")
-                        self.args.rf_queue.put(ResponseFrame.from_raw(frame))
-                        self._frame_buffer.clear()
-                        self.state = ParserState.IDLE
-                        return
-
-            # Check size limit after each byte
-            if len(self._frame_buffer) > 200:
-                buffer_bytes = bytes(self._frame_buffer)
-                self.logger.error(f"Command frame exceeded 200 bytes: {buffer_bytes[:100]!r}...")
-                # Check if there's a valid frame ending somewhere in the buffer
-                # This handles the case where binary data starting with [letter is followed by a real frame
-
-                # Look for ]\r\n or ]\n patterns
-                frame_end_rn = buffer_bytes.find(b"]\r\n")
-                frame_end_n = buffer_bytes.find(b"]\n")
-
-                # Use whichever comes first (if any)
-                frame_end = -1
-                end_length = 0
-                if frame_end_rn != -1 and (frame_end_n == -1 or frame_end_rn < frame_end_n):
-                    frame_end = frame_end_rn
-                    end_length = 3
-                elif frame_end_n != -1:
-                    frame_end = frame_end_n
-                    end_length = 2
-
-                if frame_end != -1:
-                    # Found a frame ending! Split the buffer
-                    # Everything before frame_end is binary, frame_end to frame_end+end_length is the frame
-                    if frame_end > 0:
-                        self.args.data_queue.put(buffer_bytes[:frame_end])
-
-                    # Search backwards from the frame end to find [letter pattern
-                    frame_start = -1
-                    for i in range(frame_end - 1, -1, -1):
-                        if buffer_bytes[i : i + 1] == b"[" and i + 1 < frame_end:
-                            next_char = buffer_bytes[i + 1 : i + 2]
-                            if next_char and next_char.isalpha():
-                                frame_start = i
-                                break
-
-                    if frame_start != -1:
-                        # Found the frame start
-                        frame_data = buffer_bytes[frame_start : frame_end + end_length]
-                        self.logger.debug(f"RX Command Frame (extracted): {frame_data!r}")
-                        self.args.rf_queue.put(ResponseFrame.from_raw(frame_data))
-                        # Put any remaining data after the frame back for reprocessing
-                        if frame_end + end_length < len(buffer_bytes):
-                            # Put remaining bytes back into the buffer
-                            remainder = buffer_bytes[frame_end + end_length :]
-                            for _ in remainder:
-                                pass  # self.args.data_buffer.putback(bytes([byte]))
-                    else:
-                        # No valid frame start found, output everything as binary
-                        self.args.data_queue.put(buffer_bytes)
-                else:
-                    # No frame ending found, output all as binary
-                    self.args.data_queue.put(buffer_bytes)
-
-                self._frame_buffer.clear()
-                self.state = ParserState.IDLE
-                return
-
-    def _parse_binary_data(self) -> None:
-        """Parse data in IN_BINARY_DATA state - accumulate until frame start or chunk limit."""
-        # Read data looking for potential frame starts
-        while self.args.data_buffer.available() > 0:
-            byte = self.args.data_buffer.peek(1)
-
-            # Check if this might be a frame start
-            if byte == b"[" and self.args.data_buffer.available() >= 2:
-                next_two = self.args.data_buffer.peek(2)
-                # Check if this looks like a real frame start
-                if next_two == b"[*" or (len(next_two) == 2 and next_two[1:2].isalpha()):
-                    # Found a potential frame start
-                    # First, output any accumulated binary data
-                    if len(self._binary_buffer) > 0:
-                        chunk = bytes(self._binary_buffer)
-                        self.logger.trace(f"RX Binary Data: {len(chunk)} bytes")  # type: ignore[attr-defined]
-                        self.args.data_queue.put(chunk)
-                        self._binary_buffer.clear()
-
-                    # Transition to IDLE to determine frame type
-                    self.state = ParserState.IDLE
-                    return
-
-            # Not a frame start, accumulate as binary data
-            byte = self.args.data_buffer.read(1)
-            self._binary_buffer.extend(byte)
-
-            # Send chunks of binary data to avoid memory issues
-            if len(self._binary_buffer) >= 8192:
-                chunk = bytes(self._binary_buffer[:8192])
-                self.logger.trace(f"RX Binary Data: {len(chunk)} bytes")  # type: ignore[attr-defined]
-                self.args.data_queue.put(chunk)
-                self._binary_buffer = self._binary_buffer[8192:]
-
-        # Buffer exhausted - if we have accumulated binary data, send it now
-        # Don't wait for more data or a chunk threshold
-        if len(self._binary_buffer) > 0:
-            chunk = bytes(self._binary_buffer)
-            self.logger.trace(f"RX Binary Data (flush): {len(chunk)} bytes")  # type: ignore[attr-defined]
-            self.args.data_queue.put(chunk)
-            self._binary_buffer.clear()
-            # Stay in IDLE state to check for new data type
-            self.state = ParserState.IDLE
+        match rf.unwrap().rf_type:
+            case ResponseFrameType.Event:
+                self.logger.debug(f"RX Event Frame: {frame_data!r}")
+                self.args.rf_event_queue.put(rf)
+            case ResponseFrameType.Standard:
+                self.logger.debug(f"RX Frame: {frame_data!r}")
+                self.args.rf_queue.put(rf)
+            case _:
+                self.logger.error(f"Expected event frame but got {rf.unwrap().rf_type}: {frame_data!r}")
+                raise RuntimeError("Unexpected frame type in event frame parser")
+        self.state = ParserState.IDLE
