@@ -390,6 +390,3 @@ class SerialPort(threading.Thread):
             except queue.Empty:
                 pass
 
-    def reset_parser(self) -> None:
-        """Reset the frame parser state machine."""
-        self.frame_parser.reset()

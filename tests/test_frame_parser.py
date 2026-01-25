@@ -29,18 +29,6 @@ def parser() -> FrameParser:
 def test_parser_initial_state(parser):  # type: ignore[no-untyped-def]
     """Test that parser initializes with correct state."""
     assert parser.state == ParserState.IDLE
-    assert parser._debug_count == 0
-
-
-def test_parser_reset(parser):  # type: ignore[no-untyped-def]
-    """Test that reset() resets parser state."""
-    parser._debug_count = 100
-    parser.state = ParserState.IN_BINARY_DATA
-
-    parser.reset()
-
-    assert parser.state == ParserState.IDLE
-    assert parser._debug_count == 0
 
 
 def test_parse_event_frame(parser: FrameParser):  # type: ignore[no-untyped-def]

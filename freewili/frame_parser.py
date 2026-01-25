@@ -46,34 +46,6 @@ class FrameParser:
         self.args: FrameParserArgs = args
         self.state = ParserState.IDLE
         self.logger = logger or logging.getLogger(__name__)
-        self._debug_count: int = 0
-        self._frame_buffer: bytearray = bytearray()
-        self._frame_start_time: float = 0.0
-        self._binary_buffer: bytearray = bytearray()
-        self._binary_only_mode: bool = False  # When True, treat all data as binary
-
-    def reset(self) -> None:
-        """Reset the parser state to initial conditions."""
-        self.state = ParserState.IDLE
-        self._debug_count = 0
-        self._frame_buffer.clear()
-        self._frame_start_time = 0.0
-        self._binary_buffer.clear()
-        self._binary_only_mode = False
-
-    def set_binary_only_mode(self, enabled: bool) -> None:
-        """Enable or disable binary-only mode.
-
-        When enabled, all data is treated as binary and no frame parsing occurs.
-        This is useful during file transfers to avoid mistaking binary data for frames.
-        """
-        self._binary_only_mode = enabled
-        if enabled:
-            # If switching to binary mode, flush any accumulated frame data as binary
-            if len(self._frame_buffer) > 0:
-                # This will be handled by the data_queue in the next parse call
-                pass
-            self.state = ParserState.IDLE
 
     def parse(self) -> None:
         """Parse data from the buffer using state machine logic.
@@ -99,14 +71,6 @@ class FrameParser:
             iterations += 1
             prev_available = self.args.data_buffer.available()
             prev_state = self.state
-
-            # In binary-only mode, treat everything as binary data
-            if self._binary_only_mode:
-                chunk = self.args.data_buffer.read(-1)
-                if chunk:
-                    self.logger.trace(f"RX Binary Data (binary-only mode): {len(chunk)} bytes")  # type: ignore[attr-defined]
-                    self.args.data_queue.put(chunk)
-                break
 
             match self.state:
                 case ParserState.IDLE:
