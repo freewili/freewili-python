@@ -140,8 +140,8 @@ class FrameParser:
             self.args.data_queue.put(self.args.data_buffer.read(len(data)))
             return
         # we need to dump any data before the frame start as binary (ie. 'asdf[' )
-        if index - 1 > 0:
-            self.args.data_queue.put(self.args.data_buffer.read(index - 1))
+        if index > 0:
+            self.args.data_queue.put(self.args.data_buffer.read(index))
         # Found a frame start at index
         match ResponseFrame.validate_start_of_frame(data[index:]):
             case (ResponseFrameType.Event, _):
@@ -160,22 +160,22 @@ class FrameParser:
                 raise RuntimeError("Unexpected result from validate_start_of_frame")
 
     def _parse_frame(self) -> None:
-        """Parse data in IN_EVENT_FRAME state - wait for closing bracket ]."""
+        """Parse data in IN_*_FRAME state - wait for closing bracket ]."""
         data: bytes = self.args.data_buffer.peek(-1)
         is_end, index = ResponseFrame.contains_end_of_frame(data)
         if not is_end and len(data) >= 100:
             # No end found and buffer is large - treat as binary data
-            self.logger.error(f"Event frame exceeded 100 bytes: {data[:100]!r}")
+            self.logger.error(f"Frame exceeded 100 bytes: {data[:100]!r}")
             self.args.data_queue.put(self.args.data_buffer.read(len(data)))
             self.state = ParserState.IDLE
             return
         frame_data = data[: index + 1]
         # Consume frame data from buffer
-        self.args.data_queue.put(self.args.data_buffer.read(len(frame_data)))
+        self.args.data_buffer.read(len(frame_data))
         rf = ResponseFrame.from_raw(frame_data)
         if not rf.is_ok():
             # Invalid frame - treat as binary data
-            self.logger.error(f"Invalid event frame: {frame_data!r}")
+            self.logger.error(f"Invalid frame: {frame_data!r}")
             self.state = ParserState.IDLE
             return
         match rf.unwrap().rf_type:
@@ -188,4 +188,10 @@ class FrameParser:
             case _:
                 self.logger.error(f"Expected event frame but got {rf.unwrap().rf_type}: {frame_data!r}")
                 raise RuntimeError("Unexpected frame type in event frame parser")
+        # Lets consume any trailing newline characters after the frame
+        endlines: bytes = self.args.data_buffer.peek(2)
+        if endlines.startswith(b"\r\n"):
+            self.args.data_buffer.read(2)
+        elif endlines.startswith(b"\n"):
+            self.args.data_buffer.read(1)
         self.state = ParserState.IDLE

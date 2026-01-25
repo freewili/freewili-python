@@ -109,7 +109,7 @@ def test_parse_multiple_frames(parser: FrameParser):  # type: ignore[no-untyped-
 
 def test_parse_mixed_data(parser: FrameParser):  # type: ignore[no-untyped-def]
     """Test parsing mixed frames and binary data."""
-    mixed = b"[u 0DE8F442FBC41063 99 status 1]\r\nBinary data\x00[o\\s 123 0 1]\n"
+    mixed = b"[u 0DE8F442FBC41063 99 status 1]\r\nBinary data\x00[o\\s 123ABC 20 status 1]\n"
     parser.args.data_buffer.write(mixed)
 
     parser.parse()

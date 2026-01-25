@@ -27,6 +27,24 @@
             "cwd": "${workspaceFolder}",
             "args": "${command:pickArgs}",
             "module": "freewili.cli_convert",
+        },
+        {
+            "name": "Debug pytest",
+            "type": "debugpy",
+            "request": "launch",
+            "console": "integratedTerminal",
+            "stopOnEntry": false,
+            "justMyCode": false,
+            "python": "${command:python.interpreterPath}",
+            "cwd": "${workspaceFolder}",
+            "module": "pytest",
+            "args": [
+                "tests/test_frame_parser.py::test_parse_mixed_data",
+                "-v"
+            ],
+            "env": {
+                "PYFW_LOG_LEVEL": "debug"
+            }
         }
     ]
 }
