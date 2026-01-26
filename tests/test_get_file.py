@@ -115,6 +115,26 @@ class TestGetFile:
                     os.unlink(downloaded_file)
 
     @pytest.mark.skipif("len(FreeWili.find_all()) == 0")
+    def test_get_file_multiple(self) -> None:
+        """Test downloading the same file multiple times."""
+        fw = FreeWili.find_first().expect("Failed to find FreeWili")
+        with fw:
+            fw.send_file(
+                "tests/assets/invalid.fwi",
+                "/images/invalid.fwi",
+                FwProcessor.Display,
+            ).expect("Failed to upload invalid.fwi to Display")
+            for i in range(50):
+                try:
+                    fw.get_file(
+                        "/images/invalid.fwi",
+                        f"invalid_{i}.fwi",
+                        FwProcessor.Display,
+                    ).expect(f"Failed to get invalid.fwi file {i}")
+                finally:
+                    os.remove(f"invalid_{i}.fwi")
+
+    @pytest.mark.skipif("len(FreeWili.find_all()) == 0")
     def test_get_file_with_callback(self) -> None:
         """Test file download with progress callback."""
         fw = FreeWili.find_first().expect("Failed to find FreeWili")

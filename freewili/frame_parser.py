@@ -133,6 +133,9 @@ class FrameParser:
             self.args.data_queue.put(self.args.data_buffer.read(len(data)))
             self.state = ParserState.IDLE
             return
+        elif not is_end or index == -1:
+            # No end found - wait for more data
+            return
         frame_data = data[: index + 1]
         # Consume frame data from buffer
         self.args.data_buffer.read(len(frame_data))
