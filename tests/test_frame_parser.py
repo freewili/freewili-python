@@ -118,7 +118,12 @@ def test_parse_incomplete_frame_below_threshold(parser: FrameParser):  # type: i
     assert parser.args.rf_queue.qsize() == 0
     # Data is processed as binary since it doesn't have full frame
     # This is expected behavior - ambiguous short sequences are treated as binary
-    assert parser.args.data_buffer.available() == 0 or parser.args.data_queue.qsize() >= 0
+    assert parser.args.data_buffer.available() == 0
+    assert parser.args.data_queue.qsize() == 2
+    data = b""
+    while not parser.args.data_queue.empty():
+        data += parser.args.data_queue.get()
+    assert data == b"[*"
 
 
 def test_parse_empty_buffer(parser: FrameParser):  # type: ignore[no-untyped-def]

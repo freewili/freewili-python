@@ -100,9 +100,7 @@ def test_file_map_invalid_extension() -> None:
 @pytest.mark.skipif("len(FreeWili.find_all()) == 0")
 def test_file_send_and_get() -> None:
     """Test File uploading on a FreeWili."""
-    device = FreeWili.find_first().expect("Failed to open")
-    device.open().expect("Failed to open)")
-    with device:
+    with FreeWili.find_first().expect("Failed to open") as device:
         event_cb_buffer: list[str] = []
 
         def event_cb(msg: str) -> None:

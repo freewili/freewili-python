@@ -24,9 +24,7 @@ class I2CHardwareFoundError(Exception):
 @pytest.mark.xfail(raises=I2CHardwareFoundError)
 def test_hw_i2c_nothing_attached() -> None:
     """Test i2c on a FreeWili with nothing attached."""
-    device = FreeWili.find_first().expect("Failed to find a FreeWili")
-    device.open().expect("Failed to open FreeWili")
-    with device:
+    with FreeWili.find_first().expect("Failed to find a FreeWili") as device:
         # Test Polling
         addresses = device.poll_i2c().expect("Failed to poll i2c")
         if len(addresses) != 0:
@@ -51,9 +49,7 @@ def test_hw_i2c_sparkfun_9dof_imu_breakout() -> None:
     ISM330DHCX I2C Address: 0x6B (Default)
     MMC5983MA Magnetometer I2C Address: 0x30
     """
-    device = FreeWili.find_first().expect("Failed to find a FreeWili")
-    device.open().expect("Failed to open FreeWili")
-    with device:
+    with FreeWili.find_first().expect("Failed to find a FreeWili") as device:
         # Test Polling
         addresses = device.poll_i2c().expect("Failed to poll I2C")
         if len(addresses) == 0:

@@ -132,7 +132,9 @@ class TestGetFile:
                         FwProcessor.Display,
                     ).expect(f"Failed to get invalid.fwi file {i}")
                 finally:
-                    os.remove(f"invalid_{i}.fwi")
+                    file_path = f"invalid_{i}.fwi"
+                    if os.path.exists(file_path):
+                        os.remove(file_path)
 
     @pytest.mark.skipif("len(FreeWili.find_all()) == 0")
     def test_get_file_with_callback(self) -> None:
@@ -205,12 +207,34 @@ class TestGetFile:
 
     @pytest.mark.skipif("len(FreeWili.find_all()) == 0")
     def test_get_file_nonexistent(self) -> None:
-        """Test downloading non-existent file - skip due to internal API issue."""
-        # This test is currently skipped due to an internal API bug in fw_serial.py
-        # where ResponseFrame.unwrap() is called but the method doesn't exist
-        # The bug is in line 1313 of fw_serial.py: rf.unwrap().response
-        # Should be: rf.response
-        pytest.skip("Skipping due to internal API bug - ResponseFrame has no unwrap() method")
+        """Test downloading non-existent file returns error."""
+        fw = FreeWili.find_first().expect("Failed to find FreeWili")
+        with fw:
+            with tempfile.NamedTemporaryFile(delete=False) as temp_dest:
+                download_path = temp_dest.name
+
+            try:
+                # Try to download a file that doesn't exist
+                result = fw.get_file(
+                    source_file="/images/this_file_does_not_exist_12345.fwi",
+                    destination_path=download_path,
+                    processor=FwProcessor.Display,
+                )
+
+                # Should fail gracefully
+                assert result.is_err(), "Downloading non-existent file should return an error"
+                error_msg = result.unwrap_err()
+                print(f"Expected error received: {error_msg}")
+
+                # Verify the error message indicates the file doesn't exist
+                assert any(
+                    keyword in error_msg.lower() for keyword in ["not found", "does not exist", "error", "fail"]
+                ), f"Error message should indicate file not found, got: {error_msg}"
+
+            finally:
+                # Clean up temp file if it was created
+                if os.path.exists(download_path):
+                    os.unlink(download_path)
 
     @pytest.mark.skipif("len(FreeWili.find_all()) == 0")
     def test_get_file_different_processors(self) -> None:

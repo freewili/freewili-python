@@ -83,6 +83,5 @@ class SafeResponseFrameDict(SafeDict):
 
     def add(self, rf: ResponseFrame) -> None:
         """Add a ResponseFrame to the container."""
-        """Add an item to the queue."""
         assert isinstance(rf, ResponseFrame), "Expected a ResponseFrame instance"
         self.setdefault(rf.rf_type_data, []).append(rf)

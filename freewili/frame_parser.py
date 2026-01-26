@@ -7,7 +7,7 @@ import time
 from dataclasses import dataclass
 
 from freewili.framing import ResponseFrame, ResponseFrameType
-from freewili.safe_reponse_frame_dict import SafeResponseFrameDict
+from freewili.safe_response_frame_dict import SafeResponseFrameDict
 from freewili.util.fifo import SafeIOFIFOBuffer
 
 
@@ -93,8 +93,11 @@ class FrameParser:
             if self.args.data_buffer.available() == prev_available and self.state == prev_state:
                 break
 
-    def _parse_idle(self) -> None:
+    def _parse_idle(self, depth: int = 0) -> None:
         """Parse data in IDLE state - check for '[' to enter frame detection."""
+        if depth > 250:
+            self.logger.error("Exceeded maximum recursion depth in _parse_idle")
+            raise RuntimeError("Exceeded maximum recursion depth in _parse_idle")
         if self.args.data_buffer.available() == 0:
             return
 
@@ -119,7 +122,7 @@ class FrameParser:
                 # recursively call to handle remaining data incase we have another frame start
                 # eat the first byte which should be a '['
                 self.args.data_queue.put(self.args.data_buffer.read(1))
-                self._parse_idle()
+                self._parse_idle(depth=depth + 1)
             case _:
                 raise RuntimeError("Unexpected result from validate_start_of_frame")
 
@@ -143,12 +146,15 @@ class FrameParser:
         if not rf.is_ok():
             # Invalid frame - treat as binary data
             self.logger.error(f"Invalid frame: {frame_data!r}")
+            self.args.data_queue.put(frame_data)
             self.state = ParserState.IDLE
             return
         match rf.unwrap().rf_type:
             case ResponseFrameType.Event:
                 self.logger.debug(f"RX Event Frame: {frame_data!r}")
                 self.args.rf_event_queue.put(rf)
+                # Store the event in rf_events so process_events() can see it
+                self.args.rf_events.add(rf.unwrap())
             case ResponseFrameType.Standard:
                 self.logger.debug(f"RX Frame: {frame_data!r}")
                 self.args.rf_queue.put(rf)

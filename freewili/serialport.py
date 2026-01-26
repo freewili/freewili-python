@@ -12,7 +12,7 @@ from result import Err, Ok, Result
 from serial import Serial, SerialException
 
 from freewili.frame_parser import FrameParser, FrameParserArgs
-from freewili.safe_reponse_frame_dict import SafeResponseFrameDict
+from freewili.safe_response_frame_dict import SafeResponseFrameDict
 from freewili.util.fifo import SafeIOFIFOBuffer
 
 # Add custom TRACE level (more verbose than DEBUG)
@@ -42,23 +42,66 @@ class ElapsedTimeFormatter(logging.Formatter):
         return super().format(record)
 
 
-# Configure logging based on environment variable
-# Set the root logger level directly instead of using basicConfig
-# This ensures it works even if logging was already configured by pytest or other modules
-log_level = os.getenv("PYFW_LOG_LEVEL", "").lower()
-root_logger = logging.getLogger()
-if log_level == "trace":
-    root_logger.setLevel(TRACE)
-elif log_level == "debug":
-    root_logger.setLevel(logging.DEBUG)
-else:
-    root_logger.setLevel(logging.WARNING)
+def enable_trace_logging() -> None:
+    """Enable TRACE level logging by adding trace() method to logging.Logger.
 
-# Ensure we have a handler with the right format
-if not root_logger.handlers:
-    handler = logging.StreamHandler()
-    handler.setFormatter(ElapsedTimeFormatter("[%(elapsed_ms)s] %(levelname)-5s %(name)s: %(message)s"))
-    root_logger.addHandler(handler)
+    This modifies the logging.Logger class globally. Call this function explicitly
+    if you want to use logger.trace() calls throughout your application.
+
+    Example:
+        from freewili.serialport import enable_trace_logging
+        enable_trace_logging()
+        logger.trace("Very verbose message")
+    """
+
+    def trace(self: logging.Logger, message: str, *args: Any, **kwargs: Any) -> None:
+        """Log a message with severity 'TRACE'."""
+        if self.isEnabledFor(TRACE):
+            self._log(TRACE, message, args, **kwargs)
+
+    logging.Logger.trace = trace  # type: ignore[attr-defined]
+
+
+def configure_logging(log_level: str | None = None) -> None:
+    """Configure root logger with elapsed time formatting.
+
+    This function is called automatically when the module is imported,
+    using the PYFW_LOG_LEVEL environment variable. You can also call
+    it explicitly to change the log level at runtime.
+
+    Parameters:
+    -----------
+        log_level : str | None
+            Log level to set. Can be 'trace', 'debug', 'info', 'warning', 'error'.
+            If None, reads from PYFW_LOG_LEVEL environment variable.
+            Defaults to 'warning' if not specified.
+
+    Example:
+        from freewili.serialport import configure_logging
+        configure_logging('debug')  # Change log level at runtime
+    """
+    if log_level is None:
+        log_level = os.getenv("PYFW_LOG_LEVEL", "warning").lower()
+    else:
+        log_level = log_level.lower()
+
+    root_logger = logging.getLogger()
+    if log_level == "trace":
+        root_logger.setLevel(TRACE)
+    elif log_level == "debug":
+        root_logger.setLevel(logging.DEBUG)
+    elif log_level == "info":
+        root_logger.setLevel(logging.INFO)
+    elif log_level == "error":
+        root_logger.setLevel(logging.ERROR)
+    else:
+        root_logger.setLevel(logging.WARNING)
+
+    # Ensure we have a handler with the right format
+    if not root_logger.handlers:
+        handler = logging.StreamHandler()
+        handler.setFormatter(ElapsedTimeFormatter("[%(elapsed_ms)s] %(levelname)-5s %(name)s: %(message)s"))
+        root_logger.addHandler(handler)
 
 
 class SerialPort(threading.Thread):
@@ -268,7 +311,7 @@ class SerialPort(threading.Thread):
                                 self._port,
                                 baudrate=self._baudrate,
                                 timeout=0.001,
-                                exclusive=False,
+                                exclusive=True,
                                 rtscts=False,
                                 xonxoff=False,
                                 dsrdtr=False,
@@ -389,4 +432,3 @@ class SerialPort(threading.Thread):
                     q.get_nowait()
             except queue.Empty:
                 pass
-
