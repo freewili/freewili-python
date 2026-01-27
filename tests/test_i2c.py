@@ -1,4 +1,5 @@
 """Test I2C functionality on a FreeWili."""
+from tkinter import N
 
 import pytest
 
@@ -56,6 +57,9 @@ def test_hw_i2c_sparkfun_9dof_imu_breakout() -> None:
             raise NoI2CHardwareError(f"Poll found {len(addresses)} I2C devices")
         # This is a workaround for firmware bug in v49. Issue #13
         if len(addresses) == 1 and 0x20 in addresses:
+            raise NoI2CHardwareError(f"Poll found {len(addresses)} I2C devices")
+        # Neptune
+        if 0x48 in addresses:
             raise NoI2CHardwareError(f"Poll found {len(addresses)} I2C devices")
         assert MMC5983MA_ADDR in addresses, f"Expected I2C address {MMC5983MA_ADDR} not found. Got {addresses}!"
         assert ISM330DHCX_ADDR in addresses, f"Expected I2C address {ISM330DHCX_ADDR} not found. Got {addresses}!"
