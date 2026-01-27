@@ -1,5 +1,4 @@
 """Test I2C functionality on a FreeWili."""
-from tkinter import N
 
 import pytest
 
