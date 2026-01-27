@@ -393,7 +393,7 @@ class SerialPort(threading.Thread):
         data: bytes | str,
         append_newline: bool = True,
         newline_chars: str = "\n",
-        delay_sec: float = 0.005,
+        delay_sec: float = 0.000,
         wait: bool = True,
     ) -> None:
         r"""Send data to the serial port.

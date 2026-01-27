@@ -2067,3 +2067,270 @@ class FreeWiliSerial:
         self.serial_port.send(cmd)
 
         return self._handle_final_response_frame()
+
+    @needs_open()
+    def can_transmit(self, channel: int, can_id: int, data: bytes, is_extended: bool, is_fd: bool) -> Result[str, str]:
+        """Transmit a CAN or CAN FD frame.
+
+        Arguments:
+        ----------
+            channel: int
+                CAN channel (0 or 1)
+            can_id: int
+                CAN ID (11-bit for standard, 29-bit for extended)
+            data: bytes
+                Data payload (0-64 bytes for CAN FD, 0-8 bytes for standard CAN)
+            is_extended: bool
+                True if using extended CAN ID (29-bit), False for standard (11-bit)
+            is_fd: bool
+                True if using CAN FD, False for standard CAN
+
+        Returns:
+        --------
+            Result[None, str]:
+                Ok(None) if the command was sent successfully, Err(str) if not.
+        """
+        # e, f w Channel ArbID (hex) isCANFD isXtd Bytes (hex)
+        self._empty_all()
+        data_bytes = " ".join(f"{i:02X}" for i in data)
+        cmd = f"e\\f\\w {channel} {can_id:02X} {1 if is_fd else 0} {1 if is_extended else 0} {data_bytes}\n"
+        self.serial_port.send(cmd)
+
+        return self._handle_final_response_frame()
+
+    @needs_open()
+    def can_enable_transmit_periodic(self, index: int, enabled: bool) -> Result[str, str]:
+        """Enable/Disable periodic transmission of a CAN or CAN FD frame.
+
+        Arguments:
+        ----------
+            channel: int
+                CAN channel (0 or 1)
+            index: int
+                Index of the periodic frame to enable
+            enabled: bool
+                True to enable periodic transmission, False to disable
+
+        Returns:
+        --------
+            Result[None, str]:
+                Ok(None) if the command was sent successfully, Err(str) if not.
+        """
+        # e, f, p index enable period (us) Channel ArbID (hex) isCANFD isXtd Bytes (hex)
+        self._empty_all()
+        cmd = f"e\\f\\p {index} {1 if enabled else 0}"
+        self.serial_port.send(cmd)
+
+        return self._handle_final_response_frame()
+
+    @needs_open()
+    def can_set_transmit_periodic(
+        self,
+        channel: int,
+        index: int,
+        period_us: int,
+        arb_id: int,
+        is_fd: bool,
+        is_extended: bool,
+        data: bytes,
+    ) -> Result[str, str]:
+        """Transmit a periodic CAN or CAN FD frame.
+
+        Arguments:
+        ----------
+            channel: int
+                CAN channel (0 or 1)
+            index: int
+                Index of the periodic frame to set
+            period_us: int
+                Period in microseconds. As of v87 firmware, minimum is 500 us.
+            arb_id: int
+                CAN Arbitration ID
+            is_fd: bool
+                True if using CAN FD, False for standard CAN
+            is_extended: bool
+                True if using extended CAN ID (29-bit), False for standard (11-bit)
+            data: bytes | tuple[int, ...]
+                Data payload (0-64 bytes for CAN FD, 0-8 bytes for standard CAN)
+
+        Returns:
+        --------
+            Result[None, str]:
+                Ok(None) if the command was sent successfully, Err(str) if not.
+        """
+        # e, f, p index enable period (us) Channel ArbID (hex) isCANFD isXtd Bytes (hex)
+        self._empty_all()
+        data_bytes = " ".join(f"{i:02X}" for i in data)
+        cmd = f"e\\f\\p {index} 1 {period_us} {channel} "
+        cmd += f"{arb_id:02X} {1 if is_fd else 0} {1 if is_extended else 0} {data_bytes}"
+        self.serial_port.send(cmd)
+
+        return self._handle_final_response_frame()
+
+    @needs_open()
+    def can_enable_streaming(self, channel: int, enabled: bool) -> Result[str, str]:
+        """Enable/Disable CAN or CAN FD frame streaming.
+
+        Arguments:
+        ----------
+            channel: int
+                CAN channel (0 or 1)
+            enabled: bool
+                True to enable streaming, False to disable
+
+        Returns:
+        --------
+            Result[None, str]:
+                Ok(None) if the command was sent successfully, Err(str) if not.
+        """
+        # e f o Channel enable
+        self._empty_all()
+        cmd = f"e\\f\\o {channel} {1 if enabled else 0}"
+        self.serial_port.send(cmd)
+
+        return self._handle_final_response_frame()
+
+    @needs_open()
+    def can_set_rx_filter(
+        self,
+        channel: int,
+        index: int,
+        is_extended: bool,
+        mask_id: int,
+        id: int | None,
+        mask_b0: int,
+        b0: int,
+        mask_b1: int,
+        b1: int,
+    ) -> Result[str, str]:
+        """Set a CAN or CAN FD filter.
+
+        See can_enable_rx_filter to enable/disable the filter.
+
+        Arguments:
+        ----------
+            channel: int
+                CAN channel (0 or 1)
+            index: int
+                index of the filter (0-31)
+            is_extended: bool
+                True if using extended CAN ID (29-bit), False for standard (11-bit)
+            mask_id: int
+                CAN ID (11-bit for standard, 29-bit for extended)
+            id: int
+                ID to filter on
+            mask_b0: int
+                Mask byte 0
+            b0: int
+                Byte 0
+            mask_b1: int
+                Mask byte 1
+            b1: int
+                Byte 1
+
+        Returns:
+        --------
+            Result[None, str]:
+                Ok(None) if the command was sent successfully, Err(str) if not.
+        """
+        # e f f channel (0-1), index (0-32), enable, isXTD, mskID, ID, [mskb0, b0, mskb1, b1]
+        # 0 0 0 1 1 1 1 1 1
+        self._empty_all()
+        cmd = f"e\\f\\f {channel} {index} 1 {1 if is_extended else 0} {mask_id:02X} {id:02X} "
+        cmd += f" {mask_b0:02X} {b0:02X} {mask_b1:02X} {b1:02X}"
+        self.serial_port.send(cmd)
+
+        return self._handle_final_response_frame()
+
+    @needs_open()
+    def can_enable_rx_filter(
+        self,
+        channel: int,
+        index: int,
+        enable: bool,
+    ) -> Result[str, str]:
+        """Enable or disable a CAN RX filter.
+
+        Arguments:
+        ----------
+            channel: int
+                CAN channel (0 or 1)
+            index: int
+                index of the filter (0-31)
+            enable: bool
+                True to enable the filter, False to disable
+
+        Returns:
+        --------
+            Result[None, str]:
+                Ok(None) if the command was sent successfully, Err(str) if not.
+        """
+        # e f f channel (0-1) index (0-32) enable isXTD mskID ID (opt) mskb0 b0 mskb1 b1
+        self._empty_all()
+        cmd = f"e\\f\\f {channel} {index} {1 if enable else 0}"
+        self.serial_port.send(cmd)
+
+        return self._handle_final_response_frame()
+
+    @needs_open()
+    def can_read_registers(
+        self,
+        channel: int,
+        address: int,
+        wordcount: int,
+    ) -> Result[str, str]:
+        """Read CAN registers.
+
+        Arguments:
+        ----------
+            channel: int
+                CAN channel (0 or 1)
+            address: int
+                Register address (hex)
+            wordcount: int
+                Number of words to read
+
+        Returns:
+        --------
+            Result[None, str]:
+                Ok(None) if the command was sent successfully, Err(str) if not.
+        """
+        # e f r channel (0-1) address (hex) wordcount
+        self._empty_all()
+        cmd = f"e\\f\\r {channel} {address:02X} {wordcount}"
+        self.serial_port.send(cmd)
+
+        return self._handle_final_response_frame()
+
+    @needs_open()
+    def can_write_registers(
+        self,
+        channel: int,
+        address: int,
+        bytesize: int,
+        word: int,
+    ) -> Result[str, str]:
+        """Write CAN registers.
+
+        Arguments:
+        ----------
+            channel: int
+                CAN channel (0 or 1)
+            address: int
+                Register address (hex)
+            bytesize: int
+                Bytes per word (1 or 4)
+            word: int
+                Word to write (hex)
+
+        Returns:
+        --------
+            Result[None, str]:
+                Ok(None) if the command was sent successfully, Err(str) if not.
+        """
+        # e f s channel (0-1) address (hex) bytesize (1,4) word (hex)
+        self._empty_all()
+        cmd = f"e\\f\\s {channel} {address:02X} {bytesize} {word:02X}"
+        self.serial_port.send(cmd)
+
+        return self._handle_final_response_frame()

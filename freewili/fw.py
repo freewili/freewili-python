@@ -1665,7 +1665,10 @@ class FreeWili:
         Arguments:
         ----------
             destination: int
-                Destination processor (0 = WILEye's SDCard, 1 = FREE-WILi's Main Filesystem, 2 = FREE-WILi's Display Filesystem)
+                Destination processor
+                    0 = WILEye's SDCard
+                    1 = FREE-WILi's Main Filesystem
+                    2 = FREE-WILi's Display Filesystem
             filename: str
                 Name of the file to save the video as
             processor: FreeWiliProcessorType
@@ -1895,6 +1898,305 @@ class FreeWili:
         match self.get_serial_from(processor):
             case Ok(serial):
                 return serial.wileye_set_resolution(resolution_index)
+            case Err(msg):
+                return Err(msg)
+            case _:
+                raise RuntimeError("Missing case statement")
+
+    def can_transmit(
+        self,
+        channel: int,
+        can_id: int,
+        data: bytes,
+        is_extended: bool,
+        is_fd: bool,
+        processor: FreeWiliProcessorType = FreeWiliProcessorType.Main,
+    ) -> Result[str, str]:
+        """Transmit a CAN or CAN FD frame.
+
+        Arguments:
+        ----------
+            channel: int
+                CAN channel (0 or 1)
+            can_id: int
+                CAN ID (11-bit for standard, 29-bit for extended)
+            data: bytes | tuple[int, ...]
+                Data payload (0-64 bytes for CAN FD, 0-8 bytes for standard CAN)
+            is_extended: bool
+                True if using extended CAN ID (29-bit), False for standard (11-bit)
+            is_fd: bool
+                True if using CAN FD, False for standard CAN
+            processor: FreeWiliProcessorType
+                Processor to send the command to (default: Main)
+
+        Returns:
+        --------
+            Result[str, str]:
+                Ok(str) if the command was sent successfully, Err(str) if not.
+        """
+        match self.get_serial_from(processor):
+            case Ok(serial):
+                return serial.can_transmit(channel, can_id, data, is_extended, is_fd)
+            case Err(msg):
+                return Err(msg)
+            case _:
+                raise RuntimeError("Missing case statement")
+
+    def can_enable_transmit_periodic(
+        self,
+        index: int,
+        enabled: bool,
+        processor: FreeWiliProcessorType = FreeWiliProcessorType.Main,
+    ) -> Result[str, str]:
+        """Enable/Disable periodic transmission of a CAN or CAN FD frame.
+
+        Arguments:
+        ----------
+            index: int
+                Index of the periodic frame to enable
+            enabled: bool
+                True to enable periodic transmission, False to disable
+            processor: FreeWiliProcessorType
+                Processor to send the command to (default: Main)
+
+        Returns:
+        --------
+            Result[str, str]:
+                Ok(str) if the command was sent successfully, Err(str) if not.
+        """
+        match self.get_serial_from(processor):
+            case Ok(serial):
+                return serial.can_enable_transmit_periodic(index, enabled)
+            case Err(msg):
+                return Err(msg)
+            case _:
+                raise RuntimeError("Missing case statement")
+
+    def can_set_transmit_periodic(
+        self,
+        channel: int,
+        index: int,
+        period_us: int,
+        arb_id: int,
+        is_fd: bool,
+        is_extended: bool,
+        data: bytes,
+        processor: FreeWiliProcessorType = FreeWiliProcessorType.Main,
+    ) -> Result[str, str]:
+        """Set a periodic CAN or CAN FD frame.
+
+        Arguments:
+        ----------
+            channel: int
+                CAN channel (0 or 1)
+            index: int
+                Index of the periodic frame to set
+            period_us: int
+                Period in microseconds. As of v87 firmware, minimum is 500 us.
+            arb_id: int
+                CAN Arbitration ID
+            is_fd: bool
+                True if using CAN FD, False for standard CAN
+            is_extended: bool
+                True if using extended CAN ID (29-bit), False for standard (11-bit)
+            data: bytes
+                Data payload (0-64 bytes for CAN FD, 0-8 bytes for standard CAN)
+            processor: FreeWiliProcessorType
+                Processor to send the command to (default: Main)
+
+        Returns:
+        --------
+            Result[str, str]:
+                Ok(str) if the command was sent successfully, Err(str) if not.
+        """
+        match self.get_serial_from(processor):
+            case Ok(serial):
+                return serial.can_set_transmit_periodic(channel, index, period_us, arb_id, is_fd, is_extended, data)
+            case Err(msg):
+                return Err(msg)
+            case _:
+                raise RuntimeError("Missing case statement")
+
+    def can_enable_streaming(
+        self,
+        channel: int,
+        enabled: bool,
+        processor: FreeWiliProcessorType = FreeWiliProcessorType.Main,
+    ) -> Result[str, str]:
+        """Enable/Disable CAN or CAN FD frame streaming.
+
+        Arguments:
+        ----------
+            channel: int
+                CAN channel (0 or 1)
+            enabled: bool
+                True to enable streaming, False to disable
+            processor: FreeWiliProcessorType
+                Processor to send the command to (default: Main)
+
+        Returns:
+        --------
+            Result[str, str]:
+                Ok(str) if the command was sent successfully, Err(str) if not.
+        """
+        match self.get_serial_from(processor):
+            case Ok(serial):
+                return serial.can_enable_streaming(channel, enabled)
+            case Err(msg):
+                return Err(msg)
+            case _:
+                raise RuntimeError("Missing case statement")
+
+    def can_set_rx_filter(
+        self,
+        channel: int,
+        index: int,
+        is_extended: bool,
+        mask_id: int,
+        id: int | None,
+        mask_b0: int,
+        b0: int,
+        mask_b1: int,
+        b1: int,
+        processor: FreeWiliProcessorType = FreeWiliProcessorType.Main,
+    ) -> Result[str, str]:
+        """Set a CAN or CAN FD filter.
+
+        See can_enable_rx_filter to enable/disable the filter.
+
+        Arguments:
+        ----------
+            channel: int
+                CAN channel (0 or 1)
+            index: int
+                Index of the filter (0-31)
+            is_extended: bool
+                True if using extended CAN ID (29-bit), False for standard (11-bit)
+            mask_id: int
+                CAN ID mask (11-bit for standard, 29-bit for extended)
+            id: int | None
+                ID to filter on
+            mask_b0: int
+                Mask byte 0
+            b0: int
+                Byte 0
+            mask_b1: int
+                Mask byte 1
+            b1: int
+                Byte 1
+            processor: FreeWiliProcessorType
+                Processor to send the command to (default: Main)
+
+        Returns:
+        --------
+            Result[str, str]:
+                Ok(str) if the command was sent successfully, Err(str) if not.
+        """
+        match self.get_serial_from(processor):
+            case Ok(serial):
+                return serial.can_set_rx_filter(channel, index, is_extended, mask_id, id, mask_b0, b0, mask_b1, b1)
+            case Err(msg):
+                return Err(msg)
+            case _:
+                raise RuntimeError("Missing case statement")
+
+    def can_enable_rx_filter(
+        self,
+        channel: int,
+        index: int,
+        enable: bool,
+        processor: FreeWiliProcessorType = FreeWiliProcessorType.Main,
+    ) -> Result[str, str]:
+        """Enable or disable a CAN RX filter.
+
+        Arguments:
+        ----------
+            channel: int
+                CAN channel (0 or 1)
+            index: int
+                Index of the filter (0-31)
+            enable: bool
+                True to enable the filter, False to disable
+            processor: FreeWiliProcessorType
+                Processor to send the command to (default: Main)
+
+        Returns:
+        --------
+            Result[str, str]:
+                Ok(str) if the command was sent successfully, Err(str) if not.
+        """
+        match self.get_serial_from(processor):
+            case Ok(serial):
+                return serial.can_enable_rx_filter(channel, index, enable)
+            case Err(msg):
+                return Err(msg)
+            case _:
+                raise RuntimeError("Missing case statement")
+
+    def can_read_registers(
+        self,
+        channel: int,
+        address: int,
+        wordcount: int,
+        processor: FreeWiliProcessorType = FreeWiliProcessorType.Main,
+    ) -> Result[str, str]:
+        """Read CAN registers.
+
+        Arguments:
+        ----------
+            channel: int
+                CAN channel (0 or 1)
+            address: int
+                Register address (hex)
+            wordcount: int
+                Number of words to read
+            processor: FreeWiliProcessorType
+                Processor to send the command to (default: Main)
+
+        Returns:
+        --------
+            Result[str, str]:
+                Ok(str) if the command was sent successfully, Err(str) if not.
+        """
+        match self.get_serial_from(processor):
+            case Ok(serial):
+                return serial.can_read_registers(channel, address, wordcount)
+            case Err(msg):
+                return Err(msg)
+            case _:
+                raise RuntimeError("Missing case statement")
+
+    def can_write_registers(
+        self,
+        channel: int,
+        address: int,
+        bytesize: int,
+        word: int,
+        processor: FreeWiliProcessorType = FreeWiliProcessorType.Main,
+    ) -> Result[str, str]:
+        """Write CAN registers.
+
+        Arguments:
+        ----------
+            channel: int
+                CAN channel (0 or 1)
+            address: int
+                Register address (hex)
+            bytesize: int
+                Bytes per word (1 or 4)
+            word: int
+                Word to write (hex)
+            processor: FreeWiliProcessorType
+                Processor to send the command to (default: Main)
+
+        Returns:
+        --------
+            Result[str, str]:
+                Ok(str) if the command was sent successfully, Err(str) if not.
+        """
+        match self.get_serial_from(processor):
+            case Ok(serial):
+                return serial.can_write_registers(channel, address, bytesize, word)
             case Err(msg):
                 return Err(msg)
             case _:

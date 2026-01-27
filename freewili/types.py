@@ -366,10 +366,83 @@ class BatteryData(EventData):
         )
 
 
+@dataclass(frozen=True)
+class CANData(EventData):
+    """CAN event data from Free-Wili Neptune."""
+
+    # w
+    # Channel ArbID (hex) isCANFD isXtd Bytes (hex)
+
+    # 0 9 1 1 01 02 03
+    # [e\f\w 0D4B2535E0F2EED0 28 Ok 1]
+    # [*can1 0D4B2535E108BCD8 29 9x 01 02 03 1]
+    # [*canTx0 0D4B2535E1354348 30 9x 01 02 03 1]
+
+    # w
+    # Channel ArbID (hex) isCANFD isXtd Bytes (hex)
+
+    # 0 9 1 0 01 02 03
+    # [e\f\w 0D4B253EF45EF028 31 Ok 1]
+    # [*can1 0D4B253EF47304C8 32 9 01 02 03 1]
+    # [*canTx0 0D4B253EF4BCEEA8 33 9 01 02 03 1]
+
+    # w
+    # Channel ArbID (hex) isCANFD isXtd Bytes (hex)
+
+    # 0 9 0 0 01 02 03
+    # [e\f\w 0D4B254578129FE0 34 Ok 1]
+    # [*can1 0D4B254578266E30 35 9 01 02 03 1]
+    # [*canTx0 0D4B254578321A78 36 9 01 02 03 1]
+    # CAN Arbitration ID
+    arb_id: int
+    # Indicates if using extended CAN ID (29-bit) or standard (11-bit)
+    is_extended: bool
+    # Data payload
+    data: bytes
+
+    @classmethod
+    def from_string(cls, data: str) -> Self:
+        """Convert a string to a CANData object.
+
+        Arguments:
+        ----------
+            data: str
+                The string to convert, typically from a CAN event.
+
+        Returns:
+        --------
+            CANData:
+                The converted CANData object.
+        """
+        # [*can1 0D4B254578266E30 35 9 01 02 03 1]
+        # [*canTx0 0D4B254578321A78 36 9 01 02 03 1]
+        # [*can1 0D4B25E7F3A694C0 44 9  1]
+        # [*canTx0 0D4B25E7F3B1B850 45 9  1]
+        parts = data.split(" ")
+        arb_id = int(parts[0].strip("x"), 16)
+        is_extended = parts[0].lower().endswith("x")
+        data_bytes = bytes([int(x, 16) for x in parts[1:]])
+        return cls(
+            arb_id=arb_id,
+            is_extended=is_extended,
+            data=data_bytes,
+        )
+
+
 # Type alias for all possible event data types
 # This allows us to use EventDataType in type hints and function signatures
 EventDataType = (
-    EventData | RawData | Radio1Data | Radio2Data | UART1Data | GPIOData | AccelData | ButtonData | IRData | BatteryData
+    EventData
+    | RawData
+    | Radio1Data
+    | Radio2Data
+    | UART1Data
+    | GPIOData
+    | AccelData
+    | ButtonData
+    | IRData
+    | BatteryData
+    | CANData
 )
 
 
@@ -387,6 +460,10 @@ class EventType(enum.Enum):
     Radio2 = enum.auto()
     UART1 = enum.auto()
     Audio = enum.auto()
+    CANTX0 = enum.auto()
+    CANRX0 = enum.auto()
+    CANTX1 = enum.auto()
+    CANRX1 = enum.auto()
 
     def __str__(self) -> str:
         return self.name
@@ -430,6 +507,14 @@ class EventType(enum.Enum):
                 return UART1Data  # type: ignore[return-value]
             case self.Audio:
                 return AudioData  # type: ignore[return-value]
+            case self.CANTX0:
+                return CANData  # type: ignore[return-value]
+            case self.CANRX0:
+                return CANData  # type: ignore[return-value]
+            case self.CANTX1:
+                return CANData  # type: ignore[return-value]
+            case self.CANRX1:
+                return CANData  # type: ignore[return-value]
             case _:
                 return RawData  # type: ignore[return-value]
 
@@ -473,6 +558,14 @@ class EventType(enum.Enum):
                 return cls(cls.UART1)
             case "audio":
                 return cls(cls.Audio)
+            case "cantx0":
+                return cls(cls.CANTX0)
+            case "can0":
+                return cls(cls.CANRX0)
+            case "cantx1":
+                return cls(cls.CANTX1)
+            case "can1":
+                return cls(cls.CANRX1)
             case _:
                 return cls(cls.Unknown)
 
