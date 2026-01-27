@@ -2266,9 +2266,10 @@ class FreeWiliSerial:
                 Ok(None) if the command was sent successfully, Err(str) if not.
         """
         # e f f channel (0-1) index (0-32) enable isXTD mskID ID (opt) mskb0 b0 mskb1 b1
-        self._empty_all()
-        cmd = f"e\\f\\f {channel} {index} {1 if enable else 0}"
-        self.serial_port.send(cmd)
+        raise RuntimeError("TODO: not implemented")
+        # self._empty_all()
+        # cmd = f"e\\f\\f {channel} {index} {1 if enable else 0}"
+        # self.serial_port.send(cmd)
 
         return self._handle_final_response_frame()
 

@@ -421,7 +421,10 @@ class CANData(EventData):
         parts = data.split(" ")
         arb_id = int(parts[0].strip("x"), 16)
         is_extended = parts[0].lower().endswith("x")
-        data_bytes = bytes([int(x, 16) for x in parts[1:]])
+        try:
+            data_bytes = bytes([int(x, 16) for x in parts[1:]])
+        except ValueError:
+            data_bytes = bytes()
         return cls(
             arb_id=arb_id,
             is_extended=is_extended,
