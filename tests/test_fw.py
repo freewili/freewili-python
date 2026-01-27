@@ -20,7 +20,7 @@ def test_file_mappings() -> None:
         "sub": (FreeWiliProcessorType.Main, "/radio", "Radio file"),
         "fwi": (FreeWiliProcessorType.Display, "/images", "Image file"),
         "wav": (FreeWiliProcessorType.Display, "/sounds", "Audio file"),
-        "py": (FreeWiliProcessorType.Main, "/scripts", "rthon script"),
+        "py": (FreeWiliProcessorType.Main, "/scripts", "Python script"),
     }
 
     for ext, values in known_maps.items():
