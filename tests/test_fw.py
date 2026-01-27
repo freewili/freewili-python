@@ -15,8 +15,12 @@ def test_file_mappings() -> None:
     known_maps = {
         "wasm": (FreeWiliProcessorType.Main, "/scripts", "WASM binary"),
         "wsm": (FreeWiliProcessorType.Main, "/scripts", "WASM binary"),
+        "zio": (FreeWiliProcessorType.Main, "/scripts", "ZoomIO script file"),
+        "bin": (FreeWiliProcessorType.Main, "/fpga", "FPGA bin file"),
         "sub": (FreeWiliProcessorType.Main, "/radio", "Radio file"),
         "fwi": (FreeWiliProcessorType.Display, "/images", "Image file"),
+        "wav": (FreeWiliProcessorType.Display, "/sounds", "Audio file"),
+        "py": (FreeWiliProcessorType.Main, "/scripts", "rthon script"),
     }
 
     for ext, values in known_maps.items():

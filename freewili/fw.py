@@ -2243,6 +2243,7 @@ class FileMap:
             "sub": (FreeWiliProcessorType.Main, "/radio", "Radio file"),
             "fwi": (FreeWiliProcessorType.Display, "/images", "Image file"),
             "wav": (FreeWiliProcessorType.Display, "/sounds", "Audio file"),
+            "py": (FreeWiliProcessorType.Main, "/scripts", "rthon script"),
         }
         if ext not in mappings:
             raise ValueError(f"Extension '{ext}' is not a known FreeWili file type")
