@@ -173,3 +173,30 @@ Recursively explore and list the filesystem contents on both Display and Main pr
 .. literalinclude:: ../../examples/filesystem.py
    :language: python
    :linenos:
+
+Download Files
+--------------
+
+Download files from the FreeWili device to the local filesystem with progress tracking.
+
+.. literalinclude:: ../../examples/get_file.py
+   :language: python
+   :linenos:
+
+CAN Communication
+-----------------
+
+Handle CAN and CAN FD communication events from FreeWili devices including transmit and receive on both CAN channels.
+
+.. literalinclude:: ../../examples/can.py
+   :language: python
+   :linenos:
+
+WilEye Camera
+-------------
+
+Simple example demonstrating WilEye camera commands and automatic device discovery.
+
+.. literalinclude:: ../../examples/wileye_simple.py
+   :language: python
+   :linenos:
