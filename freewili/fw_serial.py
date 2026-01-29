@@ -1136,13 +1136,12 @@ class FreeWiliSerial:
         return self._handle_final_response_frame()
 
     @needs_open()
-    def run_script(self, file_name: str) -> Result[str, str]:
-        """Run a script on the FreeWili.
+    def reset_software(self) -> Result[str, str]:
+        """Soft reset the FreeWili.
 
         Arguments:
         ----------
-        file_name: str
-            Name of the file in the FreeWili. 8.3 filename limit exists as of V12
+            None
 
         Returns:
         -------
@@ -1150,6 +1149,61 @@ class FreeWiliSerial:
                 Ok(str) if the command was sent successfully, Err(str) if not.
         """
         self._empty_all()
+        time.sleep(1)
+        self.serial_port.send("z\\n\n")
+        self.serial_port.close()
+        time.sleep(3.0)
+        return Ok("Software reset command sent. Please reconnect.")
+
+    @needs_open()
+    def stop_script(self) -> Result[str, str]:
+        """Stop any running script on the FreeWili.
+
+        Arguments:
+        ----------
+            None
+
+        Returns:
+        -------
+            Result[str, str]:
+                Ok(str) if the command was sent successfully, Err(str) if not.
+        """
+        self._empty_all()
+        # The blank after the y is required to stop all scripts
+        self.serial_port.send("y \n")
+        match self._handle_final_response_frame():
+            case Ok(resp):
+                return Ok(resp)
+            case Err(msg):
+                # As of v91 firmware the response frame reports back 0 for success
+                if msg.lower == "ok":
+                    return Ok(msg)
+                return Ok(msg)
+            case _:
+                raise RuntimeError("Missing case statement")
+
+    @needs_open()
+    def run_script(self, file_name: str, stop_first: bool) -> Result[str, str]:
+        """Run a script on the FreeWili.
+
+        Arguments:
+        ----------
+        file_name: str
+            Name of the file in the FreeWili. 8.3 filename limit exists as of V12
+
+        stop_first: bool
+            Whether to stop any running scripts before starting the new one.
+
+        Returns:
+        -------
+            Result[str, str]:
+                Ok(str) if the command was sent successfully, Err(str) if not.
+        """
+        self._empty_all()
+        if stop_first:
+            # The blank after the y is required to stop all scripts
+            self.serial_port.send("y \n")
+            self._wait_for_response_frame(2.0)
         cmd = f"w\n{file_name}"
         self.serial_port.send(cmd)
         match self._wait_for_response_frame(2.0):

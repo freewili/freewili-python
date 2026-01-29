@@ -398,15 +398,11 @@ class FreeWili:
             case _:
                 raise RuntimeError("Missing case statement")
 
-    def run_script(
-        self, file_name: str, processor: FreeWiliProcessorType = FreeWiliProcessorType.Main
-    ) -> Result[str, str]:
+    def reset_software(self, processor: FreeWiliProcessorType = FreeWiliProcessorType.Main) -> Result[str, str]:
         """Run a script on the FreeWili.
 
         Arguments:
         ----------
-            file_name: str
-                Name of the file in the FreeWili. 8.3 filename limit exists as of V12
             processor: FreeWiliProcessorType
                 Processor to upload the file to.
 
@@ -417,7 +413,55 @@ class FreeWili:
         """
         match self.get_serial_from(processor):
             case Ok(serial):
-                return serial.run_script(file_name)
+                return serial.reset_software()
+            case Err(msg):
+                return Err(msg)
+            case _:
+                raise RuntimeError("Missing case statement")
+
+    def stop_script(self, processor: FreeWiliProcessorType = FreeWiliProcessorType.Main) -> Result[str, str]:
+        """Run a script on the FreeWili.
+
+        Arguments:
+        ----------
+            processor: FreeWiliProcessorType
+                Processor to upload the file to.
+
+        Returns:
+        ---------
+            Result[str, str]:
+                Ok(str) if the command was sent successfully, Err(str) if not.
+        """
+        match self.get_serial_from(processor):
+            case Ok(serial):
+                return serial.stop_script()
+            case Err(msg):
+                return Err(msg)
+            case _:
+                raise RuntimeError("Missing case statement")
+
+    def run_script(
+        self, file_name: str, stop_first: bool, processor: FreeWiliProcessorType = FreeWiliProcessorType.Main
+    ) -> Result[str, str]:
+        """Run a script on the FreeWili.
+
+        Arguments:
+        ----------
+            file_name: str
+                Name of the file in the FreeWili. 8.3 filename limit exists as of V12
+            stop_first: bool
+                Whether to stop any running scripts before starting the new one.
+            processor: FreeWiliProcessorType
+                Processor to upload the file to.
+
+        Returns:
+        ---------
+            Result[str, str]:
+                Ok(str) if the command was sent successfully, Err(str) if not.
+        """
+        match self.get_serial_from(processor):
+            case Ok(serial):
+                return serial.run_script(file_name, stop_first)
             case Err(msg):
                 return Err(msg)
             case _:

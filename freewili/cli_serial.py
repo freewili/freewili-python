@@ -89,6 +89,13 @@ def main() -> None:
         help="Run a script on the FreeWili. If no argument is provided, -fn will be used.",
     )
     parser.add_argument(
+        "-y",
+        "--stop_script",
+        nargs="?",
+        const=True,
+        help="Stop any running script on the FreeWili.",
+    )
+    parser.add_argument(
         "-io",
         "--io",
         nargs="*",
@@ -140,6 +147,13 @@ def main() -> None:
         "--radio_file",
         nargs=1,
         help="Transmit subfile on selected radio. Name of the file (ie. yellow.sub)",
+    )
+    parser.add_argument(
+        "-r",
+        "--reset_software",
+        action="store_true",
+        default=False,
+        help="Reset the software on the FreeWili.",
     )
     parser.add_argument(
         "--version",
@@ -243,6 +257,19 @@ def main() -> None:
                         exit_with_error("Missing case statement")
             case Err(msg):
                 exit_with_error(msg)
+    if args.stop_script:
+        match get_device(device_index, devices):
+            case Ok(device):
+                print("Stopping any running scripts...")
+                match device.stop_script():
+                    case Ok(msg):
+                        print(f"Successfully stopped scripts: {msg}")
+                    case Err(msg):
+                        exit_with_error(f"Failed to stop scripts: {msg}")
+                    case _:
+                        raise RuntimeError("Missing case statement")
+            case Err(msg):
+                exit_with_error(msg)
     if args.run_script is not None:
         match get_device(device_index, devices):
             case Ok(device):
@@ -255,7 +282,7 @@ def main() -> None:
                 else:
                     raise ValueError("No script or file name provided")
                 print(f"Running script {script_name}...")
-                match device.run_script(script_name):
+                match device.run_script(script_name, True):
                     case Ok(msg):
                         print(f"Successfully ran script {script_name}: {msg}")
                     case Err(msg):
@@ -393,6 +420,19 @@ def main() -> None:
                         print(f"Successfully transmitting {value}: {msg}")
                     case Err(msg):
                         exit_with_error(f"Failed to transmit radio file {value}: {msg}")
+            case Err(msg):
+                exit_with_error(msg)
+    if args.reset_software:
+        match get_device(device_index, devices):
+            case Ok(device):
+                print("Resetting software...")
+                match device.reset_software(FreeWiliProcessorType.Main if not processor_type else processor_type):
+                    case Ok(msg):
+                        print(f"Successfully reset software: {msg}")
+                    case Err(msg):
+                        exit_with_error(f"Failed to reset software {msg}")
+                    case Err(msg):
+                        exit_with_error(msg)
             case Err(msg):
                 exit_with_error(msg)
 
