@@ -120,7 +120,7 @@ class ResponseFrame:
         # Parse an event frame first [*event_name ...]
         if re.match(rb"^\[\*\w+ ", sof_data):
             return (ResponseFrameType.Event, index)
-        elif re.match(rb"^\[[a-zA-Z](\\[a-zA-Z])* ", sof_data):
+        elif re.match(rb"^\[[a-zA-Z?](\\[a-zA-Z])* ", sof_data):
             return (ResponseFrameType.Standard, index)
         return (ResponseFrameType.Invalid, -1)
 

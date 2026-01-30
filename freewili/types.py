@@ -42,6 +42,20 @@ class FreeWiliProcessorType(enum.Enum):
         return self.name
 
 
+@dataclass
+class FreeWiliAppInfo:
+    """Information of the FreeWili application."""
+
+    processor_type: FreeWiliProcessorType
+    version: float
+
+    def __str__(self) -> str:
+        desc = f"{self.processor_type.name}"
+        if self.processor_type in (FreeWiliProcessorType.Main, FreeWiliProcessorType.Display):
+            desc += f" v{self.version}"
+        return desc
+
+
 class ButtonColor(enum.Enum):
     """Free-Wili Physical Button Color."""
 
@@ -364,7 +378,8 @@ class BatteryData(EventData):
             charging=bool(int(parts[4])),
             charge_complete=bool(int(parts[5])),
         )
-    
+
+
 @dataclass(frozen=True)
 class NFCData(EventData):
     """NFC event data from Free-Wili Main."""
