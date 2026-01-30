@@ -1946,6 +1946,33 @@ class FreeWili:
                 return Err(msg)
             case _:
                 raise RuntimeError("Missing case statement")
+            
+    def enable_nfc_read_events(
+        self,
+        enable: bool,
+        processor: FreeWiliProcessorType = FreeWiliProcessorType.Main
+    ) -> Result[str, str]:
+        """Enable or disable NFC read events.
+
+        Parameters:
+        ------------
+            enable : bool
+                Enable NFC reads if True, disable if False.
+            processor: FreeWiliProcessorType
+                Processor to use.
+
+        Returns:
+        ---------
+            Result[str, str]:
+                Ok(str) if the command was sent successfully, Err(str) if not.
+        """
+        match self.get_serial_from(processor):
+            case Ok(serial):
+                return serial.enable_nfc_read_events(enable)
+            case Err(msg):
+                return Err(msg)
+            case _:
+                raise RuntimeError("Missing case statement")
 
     def can_transmit(
         self,

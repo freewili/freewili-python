@@ -364,6 +364,71 @@ class BatteryData(EventData):
             charging=bool(int(parts[4])),
             charge_complete=bool(int(parts[5])),
         )
+    
+@dataclass(frozen=True)
+class NFCData(EventData):
+    """NFC event data from Free-Wili Main."""
+
+    # [*nfc 0D286B98B7093788 4 Card: T2T UID=043CE602234B80 ATQA=4400 SAK=00 1]
+    # [*nfc 0D286B98B41B2400 3 Card removed 1]
+
+    """Indicates if the nfc event was a card disconnecting."""
+    disconnected: bool | None
+    uid: bytes | None
+    atqa: bytes | None
+    sak: bytes | None
+    """The card type as a string. A more sophisticated implementation would
+        have classes for each supported card."""
+    card_type: str | None
+
+    @classmethod
+    def from_string(cls, data: str) -> Self:
+        """Convert a string to an NFCData object.
+
+        Arguments:
+        ----------
+            data: str
+                The string to convert, typically from an NFC event.
+
+        Returns:
+        --------
+            NFCData:
+                The converted NFCData object.
+        """
+        try:
+            parts = data.split(" ")
+            disconnected = parts[0] == "Card" and parts[1] == "removed"
+            if disconnected:
+                return cls(
+                    disconnected=True,
+                    uid=None,
+                    atqa=None,
+                    sak=None,
+                    card_type=None,
+                )
+            card_type = parts[1]
+            uid = bytes.fromhex(parts[2].split("=")[1])
+            atqa = bytes.fromhex(parts[3].split("=")[1])
+            sak = bytes.fromhex(parts[4].split("=")[1])
+            return cls(
+                disconnected=False,
+                uid=uid,
+                atqa=atqa,
+                sak=sak,
+                card_type=card_type,
+            )
+        except ValueError:
+            print(f"ERROR: Invalid NFC data format: {data}", file=sys.stderr)
+            # Return an empty NFCData object if conversion fails
+            # This is a fallback to ensure the program continues running
+            # without crashing due to invalid data.
+            return cls(
+                disconnected=None,
+                uid=None,
+                atqa=None,
+                sak=None,
+                card_type=None,
+            )
 
 
 @dataclass(frozen=True)
@@ -445,6 +510,7 @@ EventDataType = (
     | ButtonData
     | IRData
     | BatteryData
+    | NFCData
     | CANData
 )
 
@@ -463,6 +529,7 @@ class EventType(enum.Enum):
     Radio2 = enum.auto()
     UART1 = enum.auto()
     Audio = enum.auto()
+    NFC = enum.auto()
     CANTX0 = enum.auto()
     CANRX0 = enum.auto()
     CANTX1 = enum.auto()
@@ -510,6 +577,8 @@ class EventType(enum.Enum):
                 return UART1Data  # type: ignore[return-value]
             case self.Audio:
                 return AudioData  # type: ignore[return-value]
+            case self.NFC:
+                return NFCData  # type: ignore[return-value]
             case self.CANTX0:
                 return CANData  # type: ignore[return-value]
             case self.CANRX0:
@@ -561,6 +630,8 @@ class EventType(enum.Enum):
                 return cls(cls.UART1)
             case "audio":
                 return cls(cls.Audio)
+            case "nfc":
+                return cls(cls.NFC)
             case "cantx0":
                 return cls(cls.CANTX0)
             case "can0":

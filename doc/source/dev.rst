@@ -5,11 +5,19 @@ Initial setup
 -------------
 
 .. code-block:: bash
+    :caption:  Update your fork with release tags
+    
+        cd my/fork/of/freewili-python
+        git remote add upstream https://github.com/freewili/freewili-python
+        git fetch upstream --tags
+
+.. code-block:: bash
     :caption:  Initialize virtual environment
     
         pip install uv
         uv venv
-        source .venv/bin/activate
+        source .venv/bin/activate       # Linux
+        # .\.venv\Scripts\activate.ps1  # Windows (power shell)
         uv sync
         pre-commit install
 

@@ -2389,3 +2389,22 @@ class FreeWiliSerial:
         self.serial_port.send(cmd)
 
         return self._handle_final_response_frame()
+    
+    @needs_open()
+    def enable_nfc_read_events(self, enable: bool) -> Result[str, str]:
+        """Enable or disable NFC read events.
+
+        Arguments:
+        ----------
+            enable: bool
+                Whether to enable or disable NFC read events.
+
+        Returns:
+        -------
+            Result[str, str]:
+                Ok(str) if the command was sent successfully, Err(str) if not.
+        """
+        self._empty_all()
+        cmd = f"n\nr\n{0 if not enable else 1}"
+        self.serial_port.send(cmd)
+        return self._handle_final_response_frame()
