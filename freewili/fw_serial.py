@@ -3,7 +3,6 @@
 This module provides functionality to find and control FreeWili boards.
 """
 
-import dataclasses
 import datetime
 import functools
 import pathlib
@@ -28,22 +27,14 @@ import serial
 import serial.tools.list_ports
 from result import Err, Ok, Result
 
-from freewili.types import ButtonColor, EventType, FileSystemContents, FreeWiliProcessorType, IOMenuCommand
-
-
-@dataclasses.dataclass
-class FreeWiliAppInfo:
-    """Information of the FreeWili application."""
-
-    processor_type: FreeWiliProcessorType
-    version: int
-
-    def __str__(self) -> str:
-        desc = f"{self.processor_type.name}"
-        if self.processor_type in (FreeWiliProcessorType.Main, FreeWiliProcessorType.Display):
-            desc += f" v{self.version}"
-        return desc
-
+from freewili.types import (
+    ButtonColor,
+    EventType,
+    FileSystemContents,
+    FreeWiliAppInfo,
+    FreeWiliProcessorType,
+    IOMenuCommand,
+)
 
 # Disable menu Ctrl+b
 CMD_DISABLE_MENU = b"\x02"
@@ -1455,36 +1446,39 @@ class FreeWiliSerial:
 
     @needs_open()
     def get_app_info(self) -> Result[FreeWiliAppInfo, str]:
-        """Detect the processor type of the FreeWili.
+        """Detect the processor type and version of the FreeWili.
 
         Returns:
         -------
             Result[FreeWiliProcessorType, str]:
                 Returns Ok(FreeWiliProcessorType) if the command was sent successfully, Err(str) if not.
         """
+        self._empty_all()
         self.serial_port.send("?")
         resp = self._wait_for_response_frame()
         if resp.is_err():
-            return Err(resp.err())
-        proc_type_regex = re.compile(r"(?:Main|Display|DEFCON25|Winky|DEFCON24)|(?:App version)|(?:\d+)")
+            return Err(str(resp.err()))
+        proc_type_regex = re.compile(
+            r"(?:MainCPU|DisplayCPU|Main|Display|DEFCON25|Winky|DEFCON24)|(?:App version)|(?:v?\d+(?:\.\d+)?)",
+        )
         results = proc_type_regex.findall(resp.unwrap().response)
         if len(results) != 2:
             return Ok(FreeWiliAppInfo(FreeWiliProcessorType.Unknown, 0))
         # New firmware >= 48
         processor = results[0]
-        version = results[1]
+        version = results[1].lstrip("v")
         if "main" in processor.lower():
-            return Ok(FreeWiliAppInfo(FreeWiliProcessorType.Main, int(version)))
+            return Ok(FreeWiliAppInfo(FreeWiliProcessorType.Main, float(version)))
         elif "display" in processor.lower():
-            return Ok(FreeWiliAppInfo(FreeWiliProcessorType.Display, int(version)))
+            return Ok(FreeWiliAppInfo(FreeWiliProcessorType.Display, float(version)))
         elif "winky" in processor.lower():
-            return Ok(FreeWiliAppInfo(FreeWiliProcessorType.Main, int(version)))
+            return Ok(FreeWiliAppInfo(FreeWiliProcessorType.Main, float(version)))
         elif "defcon24" in processor.lower():
-            return Ok(FreeWiliAppInfo(FreeWiliProcessorType.Main, int(version)))
+            return Ok(FreeWiliAppInfo(FreeWiliProcessorType.Main, float(version)))
         elif "defcon25" in processor.lower():
-            return Ok(FreeWiliAppInfo(FreeWiliProcessorType.Main, int(version)))
+            return Ok(FreeWiliAppInfo(FreeWiliProcessorType.Main, float(version)))
         else:
-            return Ok(FreeWiliAppInfo(FreeWiliProcessorType.Unknown, int(version)))
+            return Ok(FreeWiliAppInfo(FreeWiliProcessorType.Unknown, float(version)))
 
     @needs_open()
     def change_directory(self, directory: str) -> Result[str, str]:
@@ -2389,7 +2383,7 @@ class FreeWiliSerial:
         self.serial_port.send(cmd)
 
         return self._handle_final_response_frame()
-    
+
     @needs_open()
     def enable_nfc_read_events(self, enable: bool) -> Result[str, str]:
         """Enable or disable NFC read events.

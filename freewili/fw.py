@@ -7,6 +7,8 @@ import sys
 from dataclasses import dataclass
 from typing import Any, Callable, List
 
+from freewili.fw_serial import FreeWiliSerial
+
 if sys.version_info >= (3, 11):
     from typing import Self
 else:
@@ -16,8 +18,14 @@ import pyfwfinder as fwf
 from result import Err, Ok, Result
 
 from freewili.framing import ResponseFrame
-from freewili.fw_serial import FreeWiliSerial
-from freewili.types import ButtonColor, EventType, FileSystemContents, FreeWiliProcessorType, IOMenuCommand
+from freewili.types import (
+    ButtonColor,
+    EventType,
+    FileSystemContents,
+    FreeWiliAppInfo,
+    FreeWiliProcessorType,
+    IOMenuCommand,
+)
 
 # USB Locations:
 # first address = FTDI
@@ -1946,11 +1954,9 @@ class FreeWili:
                 return Err(msg)
             case _:
                 raise RuntimeError("Missing case statement")
-            
+
     def enable_nfc_read_events(
-        self,
-        enable: bool,
-        processor: FreeWiliProcessorType = FreeWiliProcessorType.Main
+        self, enable: bool, processor: FreeWiliProcessorType = FreeWiliProcessorType.Main
     ) -> Result[str, str]:
         """Enable or disable NFC read events.
 
@@ -2268,6 +2274,29 @@ class FreeWili:
         match self.get_serial_from(processor):
             case Ok(serial):
                 return serial.can_write_registers(channel, address, bytesize, word)
+            case Err(msg):
+                return Err(msg)
+            case _:
+                raise RuntimeError("Missing case statement")
+
+    def get_app_info(
+        self, processor: FreeWiliProcessorType = FreeWiliProcessorType.Main
+    ) -> Result[FreeWiliAppInfo, str]:
+        """Detect the processor type and version of the FreeWili.
+
+        Arguments:
+        ----------
+            processor: FreeWiliProcessorType
+                Processor to use.
+
+        Returns:
+        -------
+            Result[FreeWiliProcessorType, str]:
+                Returns Ok(FreeWiliProcessorType) if the command was sent successfully, Err(str) if not.
+        """
+        match self.get_serial_from(processor):
+            case Ok(serial):
+                return serial.get_app_info()
             case Err(msg):
                 return Err(msg)
             case _:
