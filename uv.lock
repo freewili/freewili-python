@@ -410,7 +410,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "pillow", specifier = "==12.1.0" },
-    { name = "pyfwfinder", specifier = "==0.4.2" },
+    { name = "pyfwfinder", specifier = "==0.5.0" },
     { name = "pyserial", specifier = "==3.5" },
     { name = "result", git = "https://github.com/montasaurus/result" },
     { name = "typing-extensions", specifier = "==4.12.2" },
@@ -1008,18 +1008,18 @@ wheels = [
 
 [[package]]
 name = "pyfwfinder"
-version = "0.4.2"
+version = "0.5.0"
 source = { registry = "https://pypi.org/simple" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/fc/07/f65f3c7b97b8a04227991c1e392fe88dde8721949f71422eac13611635b8/pyfwfinder-0.4.2-cp310-cp310-macosx_10_15_universal2.whl", hash = "sha256:8c8fdcb66ee281b658e1ac7a36e947e65bd639663e345dba69a61d64818aa911", size = 186282 },
-    { url = "https://files.pythonhosted.org/packages/82/55/6cbc187ed19c2f4e17baf6f54fc54fd76999119e19662fda44d7131e940e/pyfwfinder-0.4.2-cp310-cp310-manylinux_2_34_x86_64.whl", hash = "sha256:f442ffad74c57d41108ba65cc997de509dcabb700c717825b36c7dc8ab4ef810", size = 250454 },
-    { url = "https://files.pythonhosted.org/packages/4f/75/676a98d83d2b475bd29bf20be4319f0088755370eb505d10ed9adc2687df/pyfwfinder-0.4.2-cp310-cp310-win_amd64.whl", hash = "sha256:62939ddbacd27267e0a95c68f4522d944b3effaae7f1728049b50464f8e89195", size = 151017 },
-    { url = "https://files.pythonhosted.org/packages/ea/79/a3feeafded27162378f89f36e7cda609f39623a704007b49eb7de7ce1a77/pyfwfinder-0.4.2-cp311-cp311-macosx_10_15_universal2.whl", hash = "sha256:874dd65a1517ce08ff3de4cd844a9160dd4404ad8a6cd91378bb8dc836de4412", size = 187248 },
-    { url = "https://files.pythonhosted.org/packages/2c/d3/51a4d3bcbaabd1ce234c07ac54267bd9556c0d01f87729ab8a3bcec06394/pyfwfinder-0.4.2-cp311-cp311-manylinux_2_34_x86_64.whl", hash = "sha256:271d51df2593b05e01342b15073c41c720b475d3e0b4e6bde21f6a54af90de8d", size = 250813 },
-    { url = "https://files.pythonhosted.org/packages/91/92/582720aa9d8f5347640b1d3ac0af8b4bdf59b3feb4797aaed4dac1d0f5a8/pyfwfinder-0.4.2-cp311-cp311-win_amd64.whl", hash = "sha256:26f2ce1c6fea4b8202a7e5b9c26fb2a52b9b511b4c43cb16de80331113459bec", size = 151356 },
-    { url = "https://files.pythonhosted.org/packages/17/54/7882d0f0ceb8be66a06220ea3e3ddd22ee0cdf69b49679ef264310d33f0d/pyfwfinder-0.4.2-cp312-abi3-macosx_10_15_universal2.whl", hash = "sha256:d68656cc9ea92b59322251b004772ba2d29444b06ccb2b01fcb9e6d042b40148", size = 180338 },
-    { url = "https://files.pythonhosted.org/packages/41/46/e6e74e3ff2b13b2e4bb7aeafcde98d041534a285ea4166d25e5a5d796d6b/pyfwfinder-0.4.2-cp312-abi3-manylinux_2_34_x86_64.whl", hash = "sha256:9b740732b279cc97851c3a437a6d08ac5193cc9fb189686611ea66e29b33fd7e", size = 246475 },
-    { url = "https://files.pythonhosted.org/packages/fb/af/df4c3501e57ac20dd14ca99cccc4dfa88ebe49027d29fcf33a3be3280867/pyfwfinder-0.4.2-cp312-abi3-win_amd64.whl", hash = "sha256:4e162b733db3b86b15e33f0cca2ae0b3f286ece800e85bf540fa0086d3280ee0", size = 150139 },
+    { url = "https://files.pythonhosted.org/packages/3b/42/7a276fb95b747da840f233fb34dd017b726af15ea811bbede9af8bb0e1aa/pyfwfinder-0.5.0-cp310-cp310-macosx_10_15_universal2.whl", hash = "sha256:388848349b7513d9c819105bba4b89ba312774c670d12c7aeff906d7dc03e771", size = 187941 },
+    { url = "https://files.pythonhosted.org/packages/a2/e5/c393270f8c1727ab1b7e0b104b4c57303911e52dd8aa08bfe3cd6eeca4ac/pyfwfinder-0.5.0-cp310-cp310-manylinux_2_34_x86_64.whl", hash = "sha256:e8a6a7e2e07f9181aa9a361b4af0ae26a3948c1c7eb592aac5ab237086d6c586", size = 252747 },
+    { url = "https://files.pythonhosted.org/packages/b4/17/8b7c801962b7fc9074b3afdba8976c15c5df1d999355a1aac710663fa830/pyfwfinder-0.5.0-cp310-cp310-win_amd64.whl", hash = "sha256:2cf791039ccfc85561b00354f2d33245f6082cd77ad5d6363543dc82cb4c5108", size = 152648 },
+    { url = "https://files.pythonhosted.org/packages/d6/04/448270834a1fc9e9f3ca753fd5ac5c39dc0d83a0e86f70b49e638eed93ff/pyfwfinder-0.5.0-cp311-cp311-macosx_10_15_universal2.whl", hash = "sha256:34c7f373760c9b58abe5ec704fcc8275c37ce866d11b9cb70e0d2b508cb51ed1", size = 188912 },
+    { url = "https://files.pythonhosted.org/packages/73/a5/c4a1689d4ebd6b1b7da8feeff4b504a8fdf41b242a36f8d3dbd6ea019f9d/pyfwfinder-0.5.0-cp311-cp311-manylinux_2_34_x86_64.whl", hash = "sha256:3282d10e97fc2e1ee7596c93f1f40f941c2d3ee0d5911154f69c61dd1a4a08d9", size = 253087 },
+    { url = "https://files.pythonhosted.org/packages/9b/4a/b1d2d1cf64010e12f9adb9f18f43405581e55d13e3bc2706a6492d87b423/pyfwfinder-0.5.0-cp311-cp311-win_amd64.whl", hash = "sha256:f81d5b5bfb1697a226a5f413b7402b7af2831f9039ae88171cad9d6bd9f4e170", size = 152976 },
+    { url = "https://files.pythonhosted.org/packages/1b/5f/1a7f3be2ccb5d1c441922f9cb0163c3c2cd75b558a44bc6a1977ff7fce69/pyfwfinder-0.5.0-cp312-abi3-macosx_10_15_universal2.whl", hash = "sha256:152b6fb9eb17ba7f234e093c3b90e31cf17b371b56bd95461129eedc32a8dba7", size = 182133 },
+    { url = "https://files.pythonhosted.org/packages/7f/51/eff8c7c79dce484a8341cd812d2765843570e28af37851c3cc4ba6fd4d93/pyfwfinder-0.5.0-cp312-abi3-manylinux_2_34_x86_64.whl", hash = "sha256:e62f291d02b71687653d5163e59bd5dc404b09492c19db568dbd415329decf84", size = 248650 },
+    { url = "https://files.pythonhosted.org/packages/a3/7c/4eed0256923eacdd3cdbc92bc14142f83c4f579dfec396e2d966f2fd12cc/pyfwfinder-0.5.0-cp312-abi3-win_amd64.whl", hash = "sha256:7c96392022dd8e694dcd633c28f988dd83b06e920e23c1dda742cd4167472fc0", size = 151606 },
 ]
 
 [[package]]

@@ -158,6 +158,20 @@ class FreeWili:
             return None
 
     @property
+    def mass_storage(self) -> None | fwf.USBDevice:
+        """Get the Mass Storage USB Device.
+
+        Returns:
+        None | fwf.USBDevice:
+            USB Device on success, None otherwise.
+        """
+        try:
+            devices = self.device.get_usb_devices(fwf.USBDeviceType.MassStorage)
+            return devices[0] if devices else None
+        except Exception as _e:
+            return None
+
+    @property
     def main_serial(self) -> None | FreeWiliSerial:
         """Get Main FreeWiliSerial.
 

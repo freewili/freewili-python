@@ -215,6 +215,9 @@ def main() -> None:
                 if free_wili.display:
                     print_usb(2, "Display", free_wili.display)
                     print_verbose(free_wili.display, free_wili.display_serial)
+                if free_wili.mass_storage:
+                    print_usb(2, "Mass Storage", free_wili.mass_storage)
+                    print_verbose(free_wili.mass_storage)
                 if free_wili.fpga:
                     print_usb(3, "FPGA", free_wili.fpga)
                     print_verbose(free_wili.fpga, None)
