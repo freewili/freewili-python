@@ -9,7 +9,6 @@ dependencies = [
     "pillow == 12.1.0",
     "typing-extensions == 4.12.2",
     "result == 0.17.0",
-    "numpy>=2.2.4",
     "pyfwfinder==0.4.2",
 ]
 
