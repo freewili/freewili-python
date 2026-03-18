@@ -13,10 +13,13 @@ def event_callback(event_type: EventType, response_frame: ResponseFrame, event_d
         elif event_data.disconnected is None:
             return
         else:
-            print(f"NFC Card detected: UID={event_data.uid.hex().upper()}, " \
-                    f"ATQA={event_data.atqa.hex().upper()}, " \
-                    f"SAK={event_data.sak.hex().upper()}, " \
-                    f"Type={event_data.card_type}")
+            if event_data.uid is not None and event_data.atqa is not None and event_data.sak is not None:
+                print(
+                    f"NFC Card detected: UID={event_data.uid.hex().upper()}, "
+                    f"ATQA={event_data.atqa.hex().upper()}, "
+                    f"SAK={event_data.sak.hex().upper()}, "
+                    f"Type={event_data.card_type}"
+                )
 
 
 with FreeWili.find_first().expect("Failed to find FreeWili") as fw:

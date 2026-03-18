@@ -10,7 +10,8 @@ if sys.version_info >= (3, 11):
 else:
     from typing_extensions import Self
 
-import numpy as np
+from datetime import datetime, timezone
+
 from result import Err, Ok, Result
 
 
@@ -240,7 +241,7 @@ class ResponseFrame:
         except ValueError as ex:
             return Err(str(ex))
 
-    def timestamp_as_datetime(self, check_ok: bool = False) -> Result[np.datetime64, str]:
+    def timestamp_as_datetime(self, check_ok: bool = False) -> Result[datetime, str]:
         """Convert the timestamp into a datetime.
 
         Parameters:
@@ -250,9 +251,9 @@ class ResponseFrame:
 
         Returns:
         --------
-            Result[np.datetime64, str]:
-                Ok(np.datetime64) if valid, Err(str) if timestamp couldn't be converted.
+            Result[datetime, str]:
+                Ok(datetime) if valid, Err(str) if timestamp couldn't be converted.
         """
         if check_ok and not self.is_ok():
             return Err("Response success is not ok")
-        return Ok(np.datetime64(self.timestamp, "ns"))
+        return Ok(datetime.fromtimestamp(self.timestamp / 1_000_000_000, tz=timezone.utc))

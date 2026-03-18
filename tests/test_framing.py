@@ -1,6 +1,6 @@
 """Test ResponseFrame."""
 
-import numpy as np
+from datetime import datetime, timezone
 
 from freewili.framing import ResponseFrame, ResponseFrameType
 
@@ -18,9 +18,9 @@ def test_response_frame() -> None:
     assert response_frame.success == 0
     assert not response_frame.is_ok()
     assert response_frame.response_as_bytes().is_err()
-    assert response_frame.timestamp_as_datetime().expect("Failed to get timestamp as datetime") == np.datetime64(
-        1743360932471732289, "ns"
-    )
+    assert response_frame.timestamp_as_datetime().expect(
+        "Failed to get timestamp as datetime"
+    ) == datetime.fromtimestamp(1743360932471732289 / 1_000_000_000, tz=timezone.utc)
 
     response_frame = ResponseFrame.from_raw(r"[*UART1 1831A98807457841 0 Failed 0]", strict=False).expect(
         "Failed to decode frame"
