@@ -2293,6 +2293,479 @@ class FreeWili:
             case _:
                 raise RuntimeError("Missing case statement")
 
+    # MDIO Commands
+    # Hardware Setup: Connect MDC to pin 17 and MDIO to pin 14
+
+    def mdio_poll_sfp(
+        self,
+        processor: FreeWiliProcessorType = FreeWiliProcessorType.Main,
+    ) -> Result[str, str]:
+        """Poll for SFP Modules on the I2C bus.
+
+        If a module is found, reads the PHY's temperature and Signal Quality Indicator (SQI).
+
+        Arguments:
+        ----------
+            processor: FreeWiliProcessorType
+                Processor to send the command to (default: Main)
+
+        Returns:
+        --------
+            Result[str, str]:
+                Ok(str) if the command was sent successfully, Err(str) if not.
+        """
+        match self.get_serial_from(processor):
+            case Ok(serial):
+                return serial.mdio_poll_sfp()
+            case Err(msg):
+                return Err(msg)
+            case _:
+                raise RuntimeError("Missing case statement")
+
+    def mdio_read_sfp(
+        self,
+        device_address: int,
+        register_address: bytes,
+        processor: FreeWiliProcessorType = FreeWiliProcessorType.Main,
+    ) -> Result[str, str]:
+        """Read a 16-bit value from a register on an SFP device.
+
+        Arguments:
+        ----------
+            device_address: int
+                5-bit SFP device address (1 byte hex)
+            register_address: bytes
+                2-byte register address
+            processor: FreeWiliProcessorType
+                Processor to send the command to (default: Main)
+
+        Returns:
+        --------
+            Result[str, str]:
+                Ok(str) if the command was sent successfully, Err(str) if not.
+        """
+        match self.get_serial_from(processor):
+            case Ok(serial):
+                return serial.mdio_read_sfp(device_address, register_address)
+            case Err(msg):
+                return Err(msg)
+            case _:
+                raise RuntimeError("Missing case statement")
+
+    def mdio_write_sfp(
+        self,
+        device_address: int,
+        register_address_and_data: bytes,
+        processor: FreeWiliProcessorType = FreeWiliProcessorType.Main,
+    ) -> Result[str, str]:
+        """Write a 16-bit value to a register on an SFP device.
+
+        Arguments:
+        ----------
+            device_address: int
+                5-bit SFP device address (1 byte hex)
+            register_address_and_data: bytes
+                4 bytes: bytes 0-1 are the register address, bytes 2-3 are the data to write
+            processor: FreeWiliProcessorType
+                Processor to send the command to (default: Main)
+
+        Returns:
+        --------
+            Result[str, str]:
+                Ok(str) if the command was sent successfully, Err(str) if not.
+        """
+        match self.get_serial_from(processor):
+            case Ok(serial):
+                return serial.mdio_write_sfp(device_address, register_address_and_data)
+            case Err(msg):
+                return Err(msg)
+            case _:
+                raise RuntimeError("Missing case statement")
+
+    def mdio_read_modify_write_sfp(
+        self,
+        device_address: int,
+        register_mask_data: bytes,
+        processor: FreeWiliProcessorType = FreeWiliProcessorType.Main,
+    ) -> Result[str, str]:
+        """Perform a read-modify-write on an SFP register.
+
+        1-bits in the mask indicate which bits are overwritten with the corresponding data bits.
+
+        Arguments:
+        ----------
+            device_address: int
+                5-bit SFP device address (1 byte hex)
+            register_mask_data: bytes
+                6 bytes: bytes 0-1 are the register address, bytes 2-3 are the mask,
+                bytes 4-5 are the data
+            processor: FreeWiliProcessorType
+                Processor to send the command to (default: Main)
+
+        Returns:
+        --------
+            Result[str, str]:
+                Ok(str) if the command was sent successfully, Err(str) if not.
+        """
+        match self.get_serial_from(processor):
+            case Ok(serial):
+                return serial.mdio_read_modify_write_sfp(device_address, register_mask_data)
+            case Err(msg):
+                return Err(msg)
+            case _:
+                raise RuntimeError("Missing case statement")
+
+    def mdio_poll_phy(
+        self,
+        processor: FreeWiliProcessorType = FreeWiliProcessorType.Main,
+    ) -> Result[str, str]:
+        """Poll all 32 PHY addresses (0x00-0x1F) for MDIO devices.
+
+        At each address, checks for Clause 22, Clause 45, and Clause 22 Access to Clause 45
+        compatibility.
+
+        Arguments:
+        ----------
+            processor: FreeWiliProcessorType
+                Processor to send the command to (default: Main)
+
+        Returns:
+        --------
+            Result[str, str]:
+                Ok(str) if the command was sent successfully, Err(str) if not.
+        """
+        match self.get_serial_from(processor):
+            case Ok(serial):
+                return serial.mdio_poll_phy()
+            case Err(msg):
+                return Err(msg)
+            case _:
+                raise RuntimeError("Missing case statement")
+
+    def mdio_read_22(
+        self,
+        phy_address: int,
+        register_address: int,
+        processor: FreeWiliProcessorType = FreeWiliProcessorType.Main,
+    ) -> Result[str, str]:
+        """Perform a Clause 22 read.
+
+        Arguments:
+        ----------
+            phy_address: int
+                5-bit PHY address (0x00-0x1F)
+            register_address: int
+                5-bit register address (0x00-0x1F)
+            processor: FreeWiliProcessorType
+                Processor to send the command to (default: Main)
+
+        Returns:
+        --------
+            Result[str, str]:
+                Ok(str) if the command was sent successfully, Err(str) if not.
+        """
+        match self.get_serial_from(processor):
+            case Ok(serial):
+                return serial.mdio_read_22(phy_address, register_address)
+            case Err(msg):
+                return Err(msg)
+            case _:
+                raise RuntimeError("Missing case statement")
+
+    def mdio_write_22(
+        self,
+        phy_address: int,
+        register_address: int,
+        data: bytes,
+        processor: FreeWiliProcessorType = FreeWiliProcessorType.Main,
+    ) -> Result[str, str]:
+        """Perform a Clause 22 write.
+
+        Arguments:
+        ----------
+            phy_address: int
+                5-bit PHY address (0x00-0x1F)
+            register_address: int
+                5-bit register address (0x00-0x1F)
+            data: bytes
+                2 bytes of data to write (big-endian: byte[0]<<8 | byte[1])
+            processor: FreeWiliProcessorType
+                Processor to send the command to (default: Main)
+
+        Returns:
+        --------
+            Result[str, str]:
+                Ok(str) if the command was sent successfully, Err(str) if not.
+        """
+        match self.get_serial_from(processor):
+            case Ok(serial):
+                return serial.mdio_write_22(phy_address, register_address, data)
+            case Err(msg):
+                return Err(msg)
+            case _:
+                raise RuntimeError("Missing case statement")
+
+    def mdio_read_modify_write_22(
+        self,
+        phy_address: int,
+        register_address: int,
+        mask_and_data: bytes,
+        processor: FreeWiliProcessorType = FreeWiliProcessorType.Main,
+    ) -> Result[str, str]:
+        """Perform a Clause 22 read-modify-write.
+
+        1-bits in the mask indicate which bits are overwritten with the corresponding data bits.
+
+        Arguments:
+        ----------
+            phy_address: int
+                5-bit PHY address (0x00-0x1F)
+            register_address: int
+                5-bit register address (0x00-0x1F)
+            mask_and_data: bytes
+                4 bytes: bytes 0-1 are the mask, bytes 2-3 are the data
+            processor: FreeWiliProcessorType
+                Processor to send the command to (default: Main)
+
+        Returns:
+        --------
+            Result[str, str]:
+                Ok(str) if the command was sent successfully, Err(str) if not.
+        """
+        match self.get_serial_from(processor):
+            case Ok(serial):
+                return serial.mdio_read_modify_write_22(phy_address, register_address, mask_and_data)
+            case Err(msg):
+                return Err(msg)
+            case _:
+                raise RuntimeError("Missing case statement")
+
+    def mdio_read_45(
+        self,
+        phy_address: int,
+        mmd_address: int,
+        register_address: int,
+        processor: FreeWiliProcessorType = FreeWiliProcessorType.Main,
+    ) -> Result[str, str]:
+        """Perform a Clause 45 read.
+
+        Arguments:
+        ----------
+            phy_address: int
+                5-bit PHY address (0x00-0x1F)
+            mmd_address: int
+                5-bit MMD (MDIO Manageable Device) address
+            register_address: int
+                16-bit register address
+            processor: FreeWiliProcessorType
+                Processor to send the command to (default: Main)
+
+        Returns:
+        --------
+            Result[str, str]:
+                Ok(str) if the command was sent successfully, Err(str) if not.
+        """
+        match self.get_serial_from(processor):
+            case Ok(serial):
+                return serial.mdio_read_45(phy_address, mmd_address, register_address)
+            case Err(msg):
+                return Err(msg)
+            case _:
+                raise RuntimeError("Missing case statement")
+
+    def mdio_write_45(
+        self,
+        phy_address: int,
+        mmd_address: int,
+        register_address: int,
+        data: bytes,
+        processor: FreeWiliProcessorType = FreeWiliProcessorType.Main,
+    ) -> Result[str, str]:
+        """Perform a Clause 45 write.
+
+        Arguments:
+        ----------
+            phy_address: int
+                5-bit PHY address (0x00-0x1F)
+            mmd_address: int
+                5-bit MMD address
+            register_address: int
+                16-bit register address
+            data: bytes
+                2 bytes of data to write
+            processor: FreeWiliProcessorType
+                Processor to send the command to (default: Main)
+
+        Returns:
+        --------
+            Result[str, str]:
+                Ok(str) if the command was sent successfully, Err(str) if not.
+        """
+        match self.get_serial_from(processor):
+            case Ok(serial):
+                return serial.mdio_write_45(phy_address, mmd_address, register_address, data)
+            case Err(msg):
+                return Err(msg)
+            case _:
+                raise RuntimeError("Missing case statement")
+
+    def mdio_read_modify_write_45(
+        self,
+        phy_address: int,
+        mmd_address: int,
+        register_address: int,
+        mask_and_data: bytes,
+        processor: FreeWiliProcessorType = FreeWiliProcessorType.Main,
+    ) -> Result[str, str]:
+        """Perform a Clause 45 read-modify-write.
+
+        1-bits in the mask indicate which bits are overwritten with the corresponding data bits.
+
+        Arguments:
+        ----------
+            phy_address: int
+                5-bit PHY address (0x00-0x1F)
+            mmd_address: int
+                5-bit MMD address
+            register_address: int
+                16-bit register address
+            mask_and_data: bytes
+                4 bytes: bytes 0-1 are the mask, bytes 2-3 are the data
+            processor: FreeWiliProcessorType
+                Processor to send the command to (default: Main)
+
+        Returns:
+        --------
+            Result[str, str]:
+                Ok(str) if the command was sent successfully, Err(str) if not.
+        """
+        match self.get_serial_from(processor):
+            case Ok(serial):
+                return serial.mdio_read_modify_write_45(
+                    phy_address, mmd_address, register_address, mask_and_data
+                )
+            case Err(msg):
+                return Err(msg)
+            case _:
+                raise RuntimeError("Missing case statement")
+
+    def mdio_read_emu(
+        self,
+        phy_address: int,
+        mmd_address: int,
+        register_address: int,
+        processor: FreeWiliProcessorType = FreeWiliProcessorType.Main,
+    ) -> Result[str, str]:
+        """Perform a Clause 22 Access to Clause 45 (emulation) read.
+
+        Uses Clause 22 frames to access Clause 45 register space via indirect MMD access
+        through Clause 22 registers 13/14.
+
+        Arguments:
+        ----------
+            phy_address: int
+                5-bit PHY address (0x00-0x1F)
+            mmd_address: int
+                5-bit MMD address
+            register_address: int
+                16-bit register address
+            processor: FreeWiliProcessorType
+                Processor to send the command to (default: Main)
+
+        Returns:
+        --------
+            Result[str, str]:
+                Ok(str) if the command was sent successfully, Err(str) if not.
+        """
+        match self.get_serial_from(processor):
+            case Ok(serial):
+                return serial.mdio_read_emu(phy_address, mmd_address, register_address)
+            case Err(msg):
+                return Err(msg)
+            case _:
+                raise RuntimeError("Missing case statement")
+
+    def mdio_write_emu(
+        self,
+        phy_address: int,
+        mmd_address: int,
+        register_address: int,
+        data: bytes,
+        processor: FreeWiliProcessorType = FreeWiliProcessorType.Main,
+    ) -> Result[str, str]:
+        """Perform a Clause 22 Access to Clause 45 (emulation) write.
+
+        Uses Clause 22 frames to access Clause 45 register space via indirect MMD access
+        through Clause 22 registers 13/14.
+
+        Arguments:
+        ----------
+            phy_address: int
+                5-bit PHY address (0x00-0x1F)
+            mmd_address: int
+                5-bit MMD address
+            register_address: int
+                16-bit register address
+            data: bytes
+                2 bytes of data to write
+            processor: FreeWiliProcessorType
+                Processor to send the command to (default: Main)
+
+        Returns:
+        --------
+            Result[str, str]:
+                Ok(str) if the command was sent successfully, Err(str) if not.
+        """
+        match self.get_serial_from(processor):
+            case Ok(serial):
+                return serial.mdio_write_emu(phy_address, mmd_address, register_address, data)
+            case Err(msg):
+                return Err(msg)
+            case _:
+                raise RuntimeError("Missing case statement")
+
+    def mdio_read_modify_write_emu(
+        self,
+        phy_address: int,
+        mmd_address: int,
+        register_address: int,
+        mask_and_data: bytes,
+        processor: FreeWiliProcessorType = FreeWiliProcessorType.Main,
+    ) -> Result[str, str]:
+        """Perform a Clause 22 Access to Clause 45 (emulation) read-modify-write.
+
+        Uses Clause 22 frames to access Clause 45 register space via indirect MMD access
+        through Clause 22 registers 13/14. 1-bits in the mask indicate which bits are
+        overwritten with the corresponding data bits.
+
+        Arguments:
+        ----------
+            phy_address: int
+                5-bit PHY address (0x00-0x1F)
+            mmd_address: int
+                5-bit MMD address
+            register_address: int
+                16-bit register address
+            mask_and_data: bytes
+                4 bytes: bytes 0-1 are the mask, bytes 2-3 are the data
+            processor: FreeWiliProcessorType
+                Processor to send the command to (default: Main)
+
+        Returns:
+        --------
+            Result[str, str]:
+                Ok(str) if the command was sent successfully, Err(str) if not.
+        """
+        match self.get_serial_from(processor):
+            case Ok(serial):
+                return serial.mdio_read_modify_write_emu(
+                    phy_address, mmd_address, register_address, mask_and_data
+                )
+            case Err(msg):
+                return Err(msg)
+            case _:
+                raise RuntimeError("Missing case statement")
+
     def get_app_info(
         self, processor: FreeWiliProcessorType = FreeWiliProcessorType.Main
     ) -> Result[FreeWiliAppInfo, str]:

@@ -2402,3 +2402,349 @@ class FreeWiliSerial:
         cmd = f"n\nr\n{0 if not enable else 1}"
         self.serial_port.send(cmd)
         return self._handle_final_response_frame()
+
+    # MDIO Commands
+    # Hardware Setup: Connect MDC to pin 17 and MDIO to pin 14
+
+    @needs_open()
+    def mdio_poll_sfp(self) -> Result[str, str]:
+        """Poll for SFP Modules on the I2C bus.
+
+        If a module is found, reads the PHY's temperature and Signal Quality Indicator (SQI).
+
+        Returns:
+        --------
+            Result[str, str]:
+                Ok(str) if the command was sent successfully, Err(str) if not.
+        """
+        self._empty_all()
+        cmd = "e\\m\\a"
+        self.serial_port.send(cmd)
+        return self._handle_final_response_frame()
+
+    @needs_open()
+    def mdio_read_sfp(self, device_address: int, register_address: bytes) -> Result[str, str]:
+        """Read a 16-bit value from a register on an SFP device.
+
+        Arguments:
+        ----------
+            device_address: int
+                5-bit SFP device address (1 byte hex)
+            register_address: bytes
+                2-byte register address
+
+        Returns:
+        --------
+            Result[str, str]:
+                Ok(str) if the command was sent successfully, Err(str) if not.
+        """
+        self._empty_all()
+        reg_bytes = " ".join(f"{i:02X}" for i in register_address)
+        cmd = f"e\\m\\b {device_address:02X} {reg_bytes}"
+        self.serial_port.send(cmd)
+        return self._handle_final_response_frame()
+
+    @needs_open()
+    def mdio_write_sfp(self, device_address: int, register_address_and_data: bytes) -> Result[str, str]:
+        """Write a 16-bit value to a register on an SFP device.
+
+        Arguments:
+        ----------
+            device_address: int
+                5-bit SFP device address (1 byte hex)
+            register_address_and_data: bytes
+                4 bytes: bytes 0-1 are the register address, bytes 2-3 are the data to write
+
+        Returns:
+        --------
+            Result[str, str]:
+                Ok(str) if the command was sent successfully, Err(str) if not.
+        """
+        self._empty_all()
+        data_bytes = " ".join(f"{i:02X}" for i in register_address_and_data)
+        cmd = f"e\\m\\c {device_address:02X} {data_bytes}"
+        self.serial_port.send(cmd)
+        return self._handle_final_response_frame()
+
+    @needs_open()
+    def mdio_read_modify_write_sfp(self, device_address: int, register_mask_data: bytes) -> Result[str, str]:
+        """Perform a read-modify-write on an SFP register.
+
+        1-bits in the mask indicate which bits are overwritten with the corresponding data bits.
+
+        Arguments:
+        ----------
+            device_address: int
+                5-bit SFP device address (1 byte hex)
+            register_mask_data: bytes
+                6 bytes: bytes 0-1 are the register address, bytes 2-3 are the mask,
+                bytes 4-5 are the data
+
+        Returns:
+        --------
+            Result[str, str]:
+                Ok(str) if the command was sent successfully, Err(str) if not.
+        """
+        self._empty_all()
+        data_bytes = " ".join(f"{i:02X}" for i in register_mask_data)
+        cmd = f"e\\m\\e {device_address:02X} {data_bytes}"
+        self.serial_port.send(cmd)
+        return self._handle_final_response_frame()
+
+    @needs_open()
+    def mdio_poll_phy(self) -> Result[str, str]:
+        """Poll all 32 PHY addresses (0x00-0x1F) for MDIO devices.
+
+        At each address, checks for Clause 22, Clause 45, and Clause 22 Access to Clause 45
+        compatibility.
+
+        Returns:
+        --------
+            Result[str, str]:
+                Ok(str) if the command was sent successfully, Err(str) if not.
+        """
+        self._empty_all()
+        cmd = "e\\m\\y"
+        self.serial_port.send(cmd)
+        return self._handle_final_response_frame()
+
+    @needs_open()
+    def mdio_read_22(self, phy_address: int, register_address: int) -> Result[str, str]:
+        """Perform a Clause 22 read.
+
+        Arguments:
+        ----------
+            phy_address: int
+                5-bit PHY address (0x00-0x1F)
+            register_address: int
+                5-bit register address (0x00-0x1F)
+
+        Returns:
+        --------
+            Result[str, str]:
+                Ok(str) if the command was sent successfully, Err(str) if not.
+        """
+        self._empty_all()
+        cmd = f"e\\m\\g {phy_address:02X} {register_address:02X}"
+        self.serial_port.send(cmd)
+        return self._handle_final_response_frame()
+
+    @needs_open()
+    def mdio_write_22(self, phy_address: int, register_address: int, data: bytes) -> Result[str, str]:
+        """Perform a Clause 22 write.
+
+        Arguments:
+        ----------
+            phy_address: int
+                5-bit PHY address (0x00-0x1F)
+            register_address: int
+                5-bit register address (0x00-0x1F)
+            data: bytes
+                2 bytes of data to write (big-endian: byte[0]<<8 | byte[1])
+
+        Returns:
+        --------
+            Result[str, str]:
+                Ok(str) if the command was sent successfully, Err(str) if not.
+        """
+        self._empty_all()
+        data_bytes = " ".join(f"{i:02X}" for i in data)
+        cmd = f"e\\m\\i {phy_address:02X} {register_address:02X} {data_bytes}"
+        self.serial_port.send(cmd)
+        return self._handle_final_response_frame()
+
+    @needs_open()
+    def mdio_read_modify_write_22(
+        self, phy_address: int, register_address: int, mask_and_data: bytes
+    ) -> Result[str, str]:
+        """Perform a Clause 22 read-modify-write.
+
+        1-bits in the mask indicate which bits are overwritten with the corresponding data bits.
+
+        Arguments:
+        ----------
+            phy_address: int
+                5-bit PHY address (0x00-0x1F)
+            register_address: int
+                5-bit register address (0x00-0x1F)
+            mask_and_data: bytes
+                4 bytes: bytes 0-1 are the mask, bytes 2-3 are the data
+
+        Returns:
+        --------
+            Result[str, str]:
+                Ok(str) if the command was sent successfully, Err(str) if not.
+        """
+        self._empty_all()
+        data_bytes = " ".join(f"{i:02X}" for i in mask_and_data)
+        cmd = f"e\\m\\j {phy_address:02X} {register_address:02X} {data_bytes}"
+        self.serial_port.send(cmd)
+        return self._handle_final_response_frame()
+
+    @needs_open()
+    def mdio_read_45(self, phy_address: int, mmd_address: int, register_address: int) -> Result[str, str]:
+        """Perform a Clause 45 read.
+
+        Arguments:
+        ----------
+            phy_address: int
+                5-bit PHY address (0x00-0x1F)
+            mmd_address: int
+                5-bit MMD (MDIO Manageable Device) address
+            register_address: int
+                16-bit register address
+
+        Returns:
+        --------
+            Result[str, str]:
+                Ok(str) if the command was sent successfully, Err(str) if not.
+        """
+        self._empty_all()
+        cmd = f"e\\m\\k {phy_address:02X} {mmd_address:02X} {register_address:04X}"
+        self.serial_port.send(cmd)
+        return self._handle_final_response_frame()
+
+    @needs_open()
+    def mdio_write_45(self, phy_address: int, mmd_address: int, register_address: int, data: bytes) -> Result[str, str]:
+        """Perform a Clause 45 write.
+
+        Arguments:
+        ----------
+            phy_address: int
+                5-bit PHY address (0x00-0x1F)
+            mmd_address: int
+                5-bit MMD address
+            register_address: int
+                16-bit register address
+            data: bytes
+                2 bytes of data to write
+
+        Returns:
+        --------
+            Result[str, str]:
+                Ok(str) if the command was sent successfully, Err(str) if not.
+        """
+        self._empty_all()
+        data_bytes = " ".join(f"{i:02X}" for i in data)
+        cmd = f"e\\m\\l {phy_address:02X} {mmd_address:02X} {register_address:04X} {data_bytes}"
+        self.serial_port.send(cmd)
+        return self._handle_final_response_frame()
+
+    @needs_open()
+    def mdio_read_modify_write_45(
+        self, phy_address: int, mmd_address: int, register_address: int, mask_and_data: bytes
+    ) -> Result[str, str]:
+        """Perform a Clause 45 read-modify-write.
+
+        1-bits in the mask indicate which bits are overwritten with the corresponding data bits.
+
+        Arguments:
+        ----------
+            phy_address: int
+                5-bit PHY address (0x00-0x1F)
+            mmd_address: int
+                5-bit MMD address
+            register_address: int
+                16-bit register address
+            mask_and_data: bytes
+                4 bytes: bytes 0-1 are the mask, bytes 2-3 are the data
+
+        Returns:
+        --------
+            Result[str, str]:
+                Ok(str) if the command was sent successfully, Err(str) if not.
+        """
+        self._empty_all()
+        data_bytes = " ".join(f"{i:02X}" for i in mask_and_data)
+        cmd = f"e\\m\\m {phy_address:02X} {mmd_address:02X} {register_address:04X} {data_bytes}"
+        self.serial_port.send(cmd)
+        return self._handle_final_response_frame()
+
+    @needs_open()
+    def mdio_read_emu(self, phy_address: int, mmd_address: int, register_address: int) -> Result[str, str]:
+        """Perform a Clause 22 Access to Clause 45 (emulation) read.
+
+        Uses Clause 22 frames to access Clause 45 register space via indirect MMD access
+        through Clause 22 registers 13/14.
+
+        Arguments:
+        ----------
+            phy_address: int
+                5-bit PHY address (0x00-0x1F)
+            mmd_address: int
+                5-bit MMD address
+            register_address: int
+                16-bit register address
+
+        Returns:
+        --------
+            Result[str, str]:
+                Ok(str) if the command was sent successfully, Err(str) if not.
+        """
+        self._empty_all()
+        cmd = f"e\\m\\n {phy_address:02X} {mmd_address:02X} {register_address:04X}"
+        self.serial_port.send(cmd)
+        return self._handle_final_response_frame()
+
+    @needs_open()
+    def mdio_write_emu(
+        self, phy_address: int, mmd_address: int, register_address: int, data: bytes
+    ) -> Result[str, str]:
+        """Perform a Clause 22 Access to Clause 45 (emulation) write.
+
+        Uses Clause 22 frames to access Clause 45 register space via indirect MMD access
+        through Clause 22 registers 13/14.
+
+        Arguments:
+        ----------
+            phy_address: int
+                5-bit PHY address (0x00-0x1F)
+            mmd_address: int
+                5-bit MMD address
+            register_address: int
+                16-bit register address
+            data: bytes
+                2 bytes of data to write
+
+        Returns:
+        --------
+            Result[str, str]:
+                Ok(str) if the command was sent successfully, Err(str) if not.
+        """
+        self._empty_all()
+        data_bytes = " ".join(f"{i:02X}" for i in data)
+        cmd = f"e\\m\\o {phy_address:02X} {mmd_address:02X} {register_address:04X} {data_bytes}"
+        self.serial_port.send(cmd)
+        return self._handle_final_response_frame()
+
+    @needs_open()
+    def mdio_read_modify_write_emu(
+        self, phy_address: int, mmd_address: int, register_address: int, mask_and_data: bytes
+    ) -> Result[str, str]:
+        """Perform a Clause 22 Access to Clause 45 (emulation) read-modify-write.
+
+        Uses Clause 22 frames to access Clause 45 register space via indirect MMD access
+        through Clause 22 registers 13/14. 1-bits in the mask indicate which bits are
+        overwritten with the corresponding data bits.
+
+        Arguments:
+        ----------
+            phy_address: int
+                5-bit PHY address (0x00-0x1F)
+            mmd_address: int
+                5-bit MMD address
+            register_address: int
+                16-bit register address
+            mask_and_data: bytes
+                4 bytes: bytes 0-1 are the mask, bytes 2-3 are the data
+
+        Returns:
+        --------
+            Result[str, str]:
+                Ok(str) if the command was sent successfully, Err(str) if not.
+        """
+        self._empty_all()
+        data_bytes = " ".join(f"{i:02X}" for i in mask_and_data)
+        cmd = f"e\\m\\p {phy_address:02X} {mmd_address:02X} {register_address:04X} {data_bytes}"
+        self.serial_port.send(cmd)
+        return self._handle_final_response_frame()
